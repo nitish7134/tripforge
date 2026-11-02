@@ -56,7 +56,7 @@ def plan(
     meal_rate: Optional[int] = typer.Option(None, "--meal-rate", help="Per meal per person (default 1000)"),
     party_rate: Optional[int] = typer.Option(None, "--party-rate", help="Per party night per person (default 2500)"),
     currency: Optional[str] = typer.Option(None, help="Currency (default INR)"),
-    passport: Optional[str] = typer.Option(None, help="Passport country code (default IN)"),
+    passport: Optional[str] = typer.Option(None, help="Passport country code (default: home airport country)"),
     country: Optional[str] = typer.Option(None, help="Country hint for resolving stop names"),
     trip: Optional[str] = typer.Option(None, "--trip", help="Trip slug: writes trips/<slug>/{brief.yaml,out/,evidence/,notes.md}"),
     brief: Optional[Path] = typer.Option(None, "--brief", help="Read inputs from a brief.yaml (CLI flags override)"),

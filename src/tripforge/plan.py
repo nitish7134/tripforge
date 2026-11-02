@@ -19,14 +19,15 @@ from .fetchers import flights_fli as FL
 from .fetchers import stays_pyairbnb as SP
 from .fetchers.common import Result, fail
 from .fetchers.geo import stay_bbox
-from .fetchers.misc import fetch_advisories, fetch_climate, fetch_currency, fetch_fx, fetch_weather, visa_for
+from .fetchers.misc import fetch_advisories, fetch_climate, fetch_currency, fetch_fx, fetch_weather
+from .fetchers.visa import visa_requirement
 from .fetchers.photos import fetch_photos
 from .fetchers.places import stop_places
 from .stops import OWN_AIRPORT_KM, StopError, airport_point, parse_spec
 
 console = Console(stderr=True)
 
-DEFAULTS = {"people": 2, "budget_night": 5000, "prefs": [], "currency": "INR", "passport": "IN",
+DEFAULTS = {"people": 2, "budget_night": 5000, "prefs": [], "currency": "INR", "passport": None,
             "meal_rate": 1000, "meals_per_day": 3, "party_rate": 2500, "party_share": 0.5,
             "transport_day": 800, "hostels": False, "flights_backend": "auto", "stays_backend": "auto",
             "browser": "headless", "alt_start": [], "end_airport": None, "country": ""}
@@ -226,6 +227,12 @@ def build_days(opt: dict, places: dict, prefs: list[str]) -> list[dict]:
     return out
 
 
+def visa_targets(home_cc: str, passport: str, stop_ccs) -> list[str]:
+    """Countries needing a visa lookup: not the home airport's country, not the passport's own. A domestic trip
+    (every stop in the home country) returns [] so the plan shows no visa section at all."""
+    return sorted({c for c in stop_ccs if c and c != home_cc and c != passport})
+
+
 # ---------------------------------------------------------------- main
 def run_plan(cfg: dict, evid: Path) -> dict:
     t0 = time.time()
@@ -238,6 +245,7 @@ def run_plan(cfg: dict, evid: Path) -> dict:
     home_ap = AP.by_iata(cfg["from"])
     if not home_ap:
         raise PlanError(f"unknown home airport {cfg['from']}")
+    cfg["passport"] = str(cfg.get("passport") or home_ap["cc"]).upper()  # default: the home country's passport
     home = {"iata": home_ap["iata"], "name": home_ap["city"] or home_ap["name"], "lat": home_ap["lat"],
             "lon": home_ap["lon"], "km": 0}
     end_ap = AP.by_iata(cfg["end_airport"]) if cfg.get("end_airport") else None
@@ -306,7 +314,8 @@ def run_plan(cfg: dict, evid: Path) -> dict:
     br.close()
     local_ccys = sorted({r.data for r in curr.values() if r.ok and r.data and r.data != currency})
     fx = {c: cache.cached("fx", {"s": c, "d": currency}, lambda c=c: fetch_fx(c, currency, evid)) for c in local_ccys}
-    visa = {cc: visa_for(cfg["passport"], cc) for cc in ccs}
+    # Domestic trips (every stop in the home airport's country) and stops in the passport country need no visa.
+    visa = {cc: visa_requirement(cfg["passport"], cc) for cc in visa_targets(home_ap["cc"], cfg["passport"], ccs)}
 
     # ---- assemble options
     out_opts = []
@@ -435,7 +444,8 @@ def run_plan(cfg: dict, evid: Path) -> dict:
         "advisory": {cc: (r.data | {"url": r.source_url}) if r.ok else {"error": r.error} for cc, r in adv.items()},
         "climate": {k: (r.data | {"url": r.source_url}) if r.ok else {"error": r.error} for k, r in clim.items()},
         "weather": {k: (r.data if r.ok else {"error": r.error}) for k, r in wx.items()},
-        "visa": {cc: (r.data | {"source": r.source_url}) if r.ok else {"error": r.error} for cc, r in visa.items()},
+        "visa": {cc: (r.data | {"source": r.source_url, "fetched": _fmt_ts(r.fetched_at)}) if r.ok
+                 else {"error": r.error, "source": r.source_url} for cc, r in visa.items()},
         "countries": cnames,
         "photos": {k: (r.data if r.ok else []) for k, r in photos.items()},
         "evidence": ev,

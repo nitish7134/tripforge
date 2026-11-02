@@ -1,0 +1,27 @@
+{| class="wikitable"
+!Country
+!Visa requirement
+!Allowed stay
+!Notes
+|-
+| {{flag|Thailand}}
+| data-sort-value="0" {{yes|Visa not required}}<ref>{{Timatic|nationality=IN|destination=TH}}</ref>
+| 30 days
+|
+* Visa-free for a stay of up to 30 days (reduced to 30 days from 60 days effective 15 Sep 2026).<ref name=":11" />
+* From 1 May 2025, a digital arrival card must be filled, up to three days before arrival (TDAC).
+|-
+| {{flag|Vietnam}}
+| data-sort-value="3" {{yes2|eVisa}}<ref>{{Timatic|nationality=IN|destination=VN}}</ref><ref>{{cite web | url=https://evisa.gov.vn | title=Vietnam eVisa}}</ref>
+|
+|
+* e-Visa is valid for 90 days and multiple entry.
+* In November 2023, the authorities in Vietnam has proposed to waive visas for citizens of India.<ref>{{cite web | title=Vietnam likely to ease visa restrictions for these Asian nations: Details inside | url=https://en.dailypakistan.com.pk/20-Nov-2023/vietnam-likely-to-ease-visa-restrictions-for-these-asian-nations-details-inside | website=Daily Pakistan | date=20 November 2023 | access-date=22 November 2023}}</ref>
+|-
+| {{flag|Portugal}}
+| data-sort-value="4" {{no|Visa required}}<ref>{{Timatic|nationality=IN|destination=PT}}</ref>
+|
+|
+* Schengen Visa Required
+* Transit Visa: Not required [Schengen category '''A visa''' (airport transit visa) is not required for Indian passport holders travelling through the international transit area of an airport during a stopover or a change of flights].<ref>{{Cite web | title=Who needs a visa - General information - Short Stay Visas (Schengen) - Visa | url=https://vistos.mne.gov.pt/en/short-stay-visas-schengen/general-information/who-needs-a-visa#airport-transit-visa-requirements | archive-url=https://web.archive.org/web/20201201091624/https://vistos.mne.gov.pt/en/short-stay-visas-schengen/general-information/who-needs-a-visa | access-date=2026-08-30 | archive-date=2020-12-01}}</ref>
+|}
