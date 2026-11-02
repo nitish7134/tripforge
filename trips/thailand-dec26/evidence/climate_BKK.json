@@ -1,0 +1,148 @@
+{
+ "headline": "Bangkok, Thailand: sunniest in December (92/100) — 2,535 hours of sun a year.",
+ "destination": {
+  "city": "Bangkok",
+  "country": "Thailand",
+  "iata": "BKK",
+  "url": "https://sunshineatlas.com/destinations/bangkok-bkk/",
+  "continent": "Asia",
+  "population": 6704000,
+  "climate": "tropical — wet & dry seasons",
+  "destinationType": "major city break",
+  "annualSunshineHours": 2535,
+  "bestMonth": "December",
+  "sunshineScoreYear": 74,
+  "peakMiddayUvIndex": 11,
+  "peakMiddayUvCategory": "extreme",
+  "monthly": [
+   {
+    "month": "January",
+    "sunshineScore": 90,
+    "dayHighC": 31,
+    "nightLowC": 22,
+    "rainMm": 21,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "February",
+    "sunshineScore": 82,
+    "dayHighC": 33,
+    "nightLowC": 24,
+    "rainMm": 16,
+    "middayUvIndex": 10,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "March",
+    "sunshineScore": 76,
+    "dayHighC": 33,
+    "nightLowC": 25,
+    "rainMm": 51,
+    "middayUvIndex": 10,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "April",
+    "sunshineScore": 64,
+    "dayHighC": 34,
+    "nightLowC": 27,
+    "rainMm": 72,
+    "middayUvIndex": 11,
+    "middayUvCategory": "extreme",
+    "seaTempC": null
+   },
+   {
+    "month": "May",
+    "sunshineScore": 66,
+    "dayHighC": 32,
+    "nightLowC": 27,
+    "rainMm": 152,
+    "middayUvIndex": 10,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "June",
+    "sunshineScore": 66,
+    "dayHighC": 31,
+    "nightLowC": 26,
+    "rainMm": 152,
+    "middayUvIndex": 10,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "July",
+    "sunshineScore": 66,
+    "dayHighC": 31,
+    "nightLowC": 26,
+    "rainMm": 152,
+    "middayUvIndex": 10,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "August",
+    "sunshineScore": 66,
+    "dayHighC": 31,
+    "nightLowC": 25,
+    "rainMm": 155,
+    "middayUvIndex": 10,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "September",
+    "sunshineScore": 66,
+    "dayHighC": 30,
+    "nightLowC": 25,
+    "rainMm": 251,
+    "middayUvIndex": 10,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "October",
+    "sunshineScore": 66,
+    "dayHighC": 30,
+    "nightLowC": 25,
+    "rainMm": 221,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "November",
+    "sunshineScore": 85,
+    "dayHighC": 30,
+    "nightLowC": 23,
+    "rainMm": 49,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   },
+   {
+    "month": "December",
+    "sunshineScore": 92,
+    "dayHighC": 30,
+    "nightLowC": 21,
+    "rainMm": 10,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": null
+   }
+  ]
+ },
+ "attribution": {
+  "source": "Sunshine Atlas",
+  "site": "https://sunshineatlas.com",
+  "license": "CC BY 4.0 — free to use with credit and a link",
+  "data": "https://sunshineatlas.com/data/",
+  "methodology": "https://sunshineatlas.com/methodology/",
+  "note": "Sunshine Score is 0–100 per month, from long-term climate normals (not a forecast). middayUvIndex is a typical midday value on the WHO scale (0–2 low, 3–5 moderate, 6–7 high, 8–10 very high, 11+ extreme), modelled from NASA POWER climatology — climatology, not today's UV forecast. When citing, link the destination url fields."
+ }
+}
