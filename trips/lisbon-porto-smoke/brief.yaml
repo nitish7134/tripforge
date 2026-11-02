@@ -1,0 +1,8 @@
+from: BLR
+stops: Lisbon:3,Porto:2
+start: '2026-12-24'
+people: 2
+budget_night: 5000
+prefs:
+- veg
+- party
