@@ -31,6 +31,10 @@ The planner agent (`agents/PLANNER_PROMPT.md`) follows the same table when it re
 | Photos | stop | Wikimedia Commons search with attribution | none | live |
 | Daily spend | brief `meal_rate`, `party_rate`, people, nights | arithmetic on the brief only | placeholder asking for the rates | from brief |
 
+## Where fetched data lives
+
+Everything fetched for a trip is consolidated in that trip's folder: `trips/<slug>/out/plan.json` (every row with source URL and fetched_at), `trips/<slug>/evidence/` (screenshots and raw JSON), `trips/<slug>/notes.md` (decisions). Trip folders are the only place where concrete places, fares and tips may be stored, because they are specific to one trip and are cleaned up with it. `src/` holds strategy and code only.
+
 ## Rules the table implies
 
 1. **A fetch is keyed by the trip.** Same source, different trip, different query. Nothing is remembered across trips except the cache, which is keyed by the exact query and expires.
