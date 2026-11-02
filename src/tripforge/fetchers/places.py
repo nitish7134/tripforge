@@ -5,6 +5,7 @@ OSM tags are sparse on small islands, so callers keep the curated highlight list
 """
 from __future__ import annotations
 
+import html
 import re
 import threading
 import time
@@ -148,7 +149,7 @@ def wikivoyage(page: str) -> Result:
         return Result(ok=True, data={"items": items, "lead": lead[:600], "go_next": _go_next(text),
                                      "destinations": destinations(text), "text": text[:120000],
                                      "title": js["parse"]["title"]}, source_url=url)
-    return cache.cached("places:wikivoyage", {"page": page, "v": 7}, go)
+    return cache.cached("places:wikivoyage", {"page": page, "v": 8}, go)
 
 
 _WLINK = re.compile(r"\[\[([^|\]#]+)(?:\|([^\]]+))?\]\]")
@@ -159,7 +160,12 @@ def destinations(text: str) -> list[dict]:
     out, seen = [], set()
     for sec in re.finditer(r"==\s*(Cities|Other destinations|Regions)\s*==(.*?)(?=\n==[^=]|\Z)", text, re.S):
         kind = {"Cities": "city", "Other destinations": "destination", "Regions": "region"}[sec.group(1)]
-        for line in sec.group(2).splitlines():
+        # Some region articles (e.g. Indian states) write each entry as a multi-line
+        # {{marker|...}} / {{listing|...}} template; flatten each template onto one line first.
+        body = re.sub(r"\{\{(?:marker|listing|city|see|do)\b[^{}]*?\}\}",
+                      lambda m: " ".join(m.group(0).split()), sec.group(2), flags=re.S | re.I)
+        body = re.sub(r"\[\[(?:File|Image):[^\]]*\]\]", "", body)
+        for line in body.splitlines():
             m = _WLINK.search(line)
             if not m or not line.lstrip().startswith(("*", "{{")):
                 continue
@@ -170,7 +176,7 @@ def destinations(text: str) -> list[dict]:
             rest = line[m.end():].split("}}")[-1]
             rest = _WLINK.sub(lambda x: x.group(2) or x.group(1), re.sub(r"\{\{[^{}]*\}\}|'{2,3}", "", rest))
             out.append({"page": page, "name": (m.group(2) or page).strip(), "kind": kind,
-                        "blurb": rest.strip(" -\u2013\u2014:*|}").strip()[:200]})
+                        "blurb": html.unescape(rest).strip(" -\u2013\u2014:*|}").strip()[:200]})
     return out
 
 
