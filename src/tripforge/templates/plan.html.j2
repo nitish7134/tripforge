@@ -88,8 +88,8 @@ a{color:var(--pur)}
   {% set g = lg.ground %}
   <div class="row gnd"><div class="fn">{{ g.mode }}</div>
    <div><div class="rt">{{ lg.from_name }} &rarr; {{ lg.to_name }}</div>
-    <div class="meta">{{ lg.date|day }} &bull; about {{ g.hours[0] }} to {{ g.hours[1] }} h &bull; ~{{ g.km }} km &bull; INDICATIVE ({{ "typical range table" if g.source == "table" else "distance estimate" }}), book with a local operator</div></div>
-   <div class="pr">{% if g.amount %}{{ g.amount[0]|money }}&ndash;{{ g.amount[1]|money }}{% else %}unavailable{% endif %}</div></div>
+    <div class="meta">{{ lg.date|day }} &bull; about {{ g.hours[0] }} to {{ g.hours[1] }} h &bull; ~{{ g.km }} km &bull; INDICATIVE ({{ g.source }}{% if g.mode == "ferry" and "no road" in g.source %}, no road route{% endif %}){% if g.note %} &bull; {{ g.note }}{% endif %}, book with a local operator</div></div>
+   <div class="pr">{% if g.amount %}from {{ g.amount[0]|money }}{% else %}fare unavailable{% endif %}<div class="meta"><a href="{{ g.fare_url or g.link }}">12Go</a></div></div></div>
  {% elif lg.rows %}
   {% for r in lg.rows %}
   <div class="row{% if not loop.first %} alt{% endif %}">
@@ -138,6 +138,7 @@ a{color:var(--pur)}
 <div class="grid">
 {% for s in first.stops %}<div class="card"><h3 style="--c:#F77F00">{{ s.name }}{% if s.airport_km and s.airport_km > 25 %} <span class="est">(nearest airport {{ s.iata }}, {{ s.airport_km }} km)</span>{% endif %}</h3>
 {% for a in s.areas %}<p><b>{{ a[0] }}.</b> {{ a[1] }}</p>{% endfor %}
+{% if not s.guide_found %}<p class="est">No guide article found for {{ s.name }}.</p>{% endif %}
 {% if s.places.sights %}<p><b>See / do:</b> {% for x in s.places.sights %}{{ x.name }}{% if x.price %} ({{ x.price }}){% endif %}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
 {% if s.places.veg %}<p><b>Veg food:</b> {% for x in s.places.veg %}{{ x.name }}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
 {% if s.places.nightlife %}<p><b>Nightlife:</b> {% for x in s.places.nightlife %}{{ x.name }}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}

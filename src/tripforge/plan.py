@@ -1,7 +1,7 @@
 """Plan orchestration: brief -> stops -> transitions -> fetchers (fli, pyairbnb, places, keyless) -> plan dict.
 
 Destination-agnostic: stops are resolved through Nominatim + OurAirports (stops.py), ground legs come
-from data/ground.json or the distance heuristic (ground.py). Browser fetchers are only a fallback.
+runtime routing and fare reads (ground.py). Browser fetchers are only a fallback.
 """
 from __future__ import annotations
 
@@ -413,6 +413,7 @@ def run_plan(cfg: dict, evid: Path) -> dict:
             stop_out.append({**{k: s.get(k) for k in ("name", "iata", "cc", "country", "nights", "checkin", "checkout",
                                                       "airport", "airport_km")},
                              "areas": s.get("areas") or [], "highlights": s.get("highlights") or [],
+                             "guide_found": s.get("guide_found"), "guide_url": s.get("guide_url"),
                              "places": {k: pl.get(k, []) for k in ("veg", "nightlife", "sights")},
                              "places_sources": pl.get("sources", []),
                              "stays": cands, "stay_ok": bool(cands),

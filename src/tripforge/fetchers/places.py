@@ -100,7 +100,7 @@ def overpass(lat: float, lon: float, radius: int = 5000) -> Result:
     return cache.cached("places:overpass", params, go)
 
 
-_LISTING = re.compile(r"\{\{\s*(see|do|eat|drink|listing)\s*\|(.*?)\}\}", re.S | re.I)
+_LISTING = re.compile(r"\{\{\s*(see|do|eat|drink|sleep|listing)\s*\|(.*?)\}\}", re.S | re.I)
 
 
 def _field(body: str, k: str) -> str:
@@ -121,7 +121,7 @@ def wikivoyage(page: str) -> Result:
             return fail(f"wikivoyage error: {type(e).__name__}", url)
         items = []
         for kind, body in _LISTING.findall(text):
-            if kind.lower() == "listing" and _field(body, "type").lower() not in ("see", "do", "eat", "drink"):
+            if kind.lower() == "listing" and _field(body, "type").lower() not in ("see", "do", "eat", "drink", "sleep"):
                 continue
             name = _field(body, "name")
             if not name:
@@ -129,14 +129,15 @@ def wikivoyage(page: str) -> Result:
             content = _field(body, "content")
             first = re.split(r"(?<=[.!?])\s", re.sub(r"'''?|<[^>]+>", "", content), maxsplit=1)[0][:160]
             items.append({"name": name, "kind": (kind if kind.lower() != "listing" else _field(body, "type")).lower(),
-                          "blurb": first, "price": _field(body, "price")[:80], "veg": bool(re.search(r"vegetarian|vegan|\bveg\b", content, re.I)),
+                          "blurb": first, "price": _field(body, "price")[:80],
+                          "lat": _field(body, "lat"), "lon": _field(body, "long"), "veg": bool(re.search(r"vegetarian|vegan|\bveg\b", content, re.I)),
                           "adult": bool(re.search(r"go-?go|ladyboy|girly|hostess|\bstrip", content, re.I))})
         lead = re.sub(r"\{\{.*?\}\}|\[\[(?:File|Image):.*?\]\]|'''?", "", text.split("\n==", 1)[0], flags=re.S)
         lead = re.sub(r"\[\[(?:[^|\]]*\|)?([^\]]*)\]\]", r"\1", lead).strip()
         return Result(ok=True, data={"items": items, "lead": lead[:600], "go_next": _go_next(text),
                                      "destinations": destinations(text), "text": text[:120000],
                                      "title": js["parse"]["title"]}, source_url=url)
-    return cache.cached("places:wikivoyage", {"page": page, "v": 6}, go)
+    return cache.cached("places:wikivoyage", {"page": page, "v": 7}, go)
 
 
 _WLINK = re.compile(r"\[\[([^|\]#]+)(?:\|([^\]]+))?\]\]")
@@ -160,6 +161,37 @@ def destinations(text: str) -> list[dict]:
             out.append({"page": page, "name": (m.group(2) or page).strip(), "kind": kind,
                         "blurb": rest.strip(" -\u2013\u2014:*|}").strip()[:200]})
     return out
+
+
+def _section(text: str, title: str) -> str:
+    m = re.search(rf"==\s*{title}\s*==(.*?)(?=\n==[^=]|\Z)", text, re.S | re.I)
+    return m.group(1) if m else ""
+
+
+def guide(name: str) -> dict:
+    """Stay districts, highlights and a stay centre for a stop, only from its Wikivoyage article.
+    {'found': False} when there is no article: callers say 'no guide article found', nothing is invented."""
+    w = wikivoyage(name)
+    if not w.ok:
+        return {"found": False, "url": w.source_url}
+    text = w.data.get("text", "")
+    areas = []
+    for line in _section(text, "Districts").splitlines():
+        m = _WLINK.search(line)
+        if m and line.lstrip().startswith(("*", "{{")) and ":" not in m.group(1):
+            rest = _WLINK.sub(lambda x: x.group(2) or x.group(1), re.sub(r"\{\{[^{}]*\}\}|'{2,3}", "", line[m.end():]))
+            areas.append([(m.group(2) or m.group(1)).strip(), rest.strip(" -\u2013\u2014:*|}").strip()[:200]])
+    items = w.data["items"]
+    sleep_pts = []
+    for i in items:
+        if i["kind"] == "sleep" and i.get("lat") and i.get("lon"):
+            try:
+                sleep_pts.append((float(i["lat"]), float(i["lon"])))
+            except ValueError:
+                pass
+    center = [sum(p[0] for p in sleep_pts) / len(sleep_pts), sum(p[1] for p in sleep_pts) / len(sleep_pts)] if sleep_pts else None
+    hl = [i["name"] for i in items if i["kind"] in ("see", "do")][:5]
+    return {"found": True, "url": w.source_url, "areas": areas[:5], "highlights": hl, "stay_center": center}
 
 
 def _go_next(text: str) -> list[str]:

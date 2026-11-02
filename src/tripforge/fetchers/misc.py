@@ -9,13 +9,6 @@ from pathlib import Path
 
 from .common import Result, client, fail, save_json
 
-DATA = Path(__file__).resolve().parent.parent / "data"
-
-
-def load(name: str):
-    return json.loads((DATA / name).read_text())
-
-
 def fetch_fx(src: str, dst: str, evid: Path) -> Result:
     if src == dst:
         return Result(ok=True, data={"rate": 1.0, "date": None, "src": src, "dst": dst}, source_url="")

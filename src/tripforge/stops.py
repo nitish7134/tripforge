@@ -1,7 +1,7 @@
 """Resolve any place name into a stop: coordinates, country, access airports.
 
-Curated entries in data/places.json (optional examples) add stay areas, highlights and a stay
-centre; everything else comes from Nominatim + OurAirports, so any destination works.
+Coordinates and country come from Nominatim, airports from OurAirports, and stay districts, highlights and
+a stay centre from the stop's Wikivoyage article (Districts, Sleep, See, Do). No curated data ships in the repo.
 """
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import re
 
 from .fetchers import airports as AP
 from .fetchers.geo import geocode
-from .fetchers.misc import load
+from .fetchers.places import guide
 
 # A stop whose nearest airport is further than this needs a ground transfer from the airport.
 OWN_AIRPORT_KM = 40  # big-city airports sit 20-40 km out
@@ -19,33 +19,19 @@ class StopError(ValueError):
     pass
 
 
-def _curated(name: str) -> dict | None:
-    cities = load("places.json")["cities"]
-    k = name.strip().lower()
-    if k in cities:
-        return dict(cities[k])
-    for c in cities.values():
-        if k in [a.lower() for a in c.get("aliases", [])]:
-            return dict(c)
-    return None
-
-
 def resolve(name: str, country_hint: str = "", iata: str | None = None) -> dict:
     """-> {name, lat, lon, cc, country, airport, airport_km, alt_airports, areas, highlights, ...}."""
-    cur = _curated(name)
-    if cur:
-        s = cur
-        if not s.get("country"):
-            s["country"] = AP.countries().get(s["cc"], s["cc"])
-    else:
-        g = geocode(f"{name}, {country_hint}" if country_hint else name)
-        if not g.ok:
-            raise StopError(f"cannot find {name!r}: {g.error}")
-        d = g.data
-        s = {"name": name.strip().title() if name.islower() else name.strip(), "lat": d["lat"], "lon": d["lon"],
-             "cc": d["cc"], "country": d["country"] or AP.countries().get(d["cc"], d["cc"]),
-             "island": d.get("type") == "island", "bbox": d["bbox"], "areas": [], "highlights": [],
-             "airbnb": f"{name.strip().replace(' ', '-')}--{(d['country'] or '').replace(' ', '-')}"}
+    g = geocode(f"{name}, {country_hint}" if country_hint else name)
+    if not g.ok:
+        raise StopError(f"cannot find {name!r}: {g.error}")
+    d = g.data
+    s = {"name": name.strip().title() if name.islower() else name.strip(), "lat": d["lat"], "lon": d["lon"],
+         "cc": d["cc"], "country": d["country"] or AP.countries().get(d["cc"], d["cc"]),
+         "island": d.get("type") == "island", "bbox": d["bbox"],
+         "airbnb": f"{name.strip().replace(' ', '-')}--{(d['country'] or '').replace(' ', '-')}"}
+    gd = guide(s["name"])
+    s.update(guide_found=gd["found"], guide_url=gd.get("url"), areas=gd.get("areas", []),
+             highlights=gd.get("highlights", []), stay_center=gd.get("stay_center"))
     near = AP.nearest(s["lat"], s["lon"], k=4)
     if iata:
         s["iata"] = iata.upper()
@@ -59,8 +45,6 @@ def resolve(name: str, country_hint: str = "", iata: str | None = None) -> dict:
     s["alt_airports"] = [] if pkm <= OWN_AIRPORT_KM else [
         {"iata": a["iata"], "name": a["name"], "city": a["city"], "km": a["km"], "lat": a["lat"], "lon": a["lon"]}
         for a in near if a["iata"] != primary["iata"] and a["km"] <= 200][:2]
-    s.setdefault("areas", [])
-    s.setdefault("highlights", [])
     return s
 
 
