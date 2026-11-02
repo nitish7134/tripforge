@@ -60,7 +60,7 @@ a{color:var(--pur)}
 {% if hero %}<div class="shade"></div>{% endif %}
 <div class="wrap">
 <h1>{{ m.title }}</h1>
-<div class="sub">{{ m.people }} travellers &bull; from {{ m.home_name }} ({{ m.home }}){% if m.end_airport %} &bull; home from {{ m.end_airport }}{% endif %} &bull; nonstop flights only {% if m.budget_night %}&bull; about {{ m.budget_night|money }} a night for stays{% endif %}</div>
+<div class="sub">{{ m.people }} travellers &bull; from {{ m.home_name }} ({{ m.home }}){% if m.end_airport %} &bull; home from {{ m.end_airport }}{% endif %} {% if m.has_flights %}&bull; nonstop flights only {% endif %}{% if m.budget_night %}&bull; about {{ m.budget_night|money }} a night for stays{% endif %}</div>
 <div class="sub2">{{ m.prefs|join(", ") if m.prefs else "no preferences set" }} &bull; live searches on {{ m.generated }} &bull; prices in {{ m.currency }}, per person unless stated</div>
 </div></div>
 
@@ -158,10 +158,12 @@ a{color:var(--pur)}
 <div class="grid">
 {% if plan.visa %}<div class="card"><h3 style="--c:#2A9D8F">Visa ({{ m.passport }} passport)</h3>
 {% for cc, v in plan.visa.items() %}<p><b>{{ plan.countries[cc] }}:</b> {% if v.status %}{{ v.status }}{% if v.stay %}, stay {{ v.stay }}{% endif %}. {% if v.notes %}{{ v.notes }} {% endif %}<a href="{{ v.source }}">Wikipedia</a>{% if v.revision_ts %}, revision of {{ v.revision_ts[:10] }}{% endif %}. <span class="est">{{ v.verify }}</span>{% else %}unavailable (could not read Wikipedia). <a href="{{ v.source }}">Open the article</a>.{% endif %}</p>{% endfor %}</div>{% endif %}
-<div class="card"><h3 style="--c:#E63946">Safety advisory (US State Dept)</h3>
-{% for cc, a in plan.advisory.items() %}<p><b>{{ plan.countries[cc] }}:</b> {% if a.title %}<span class="lvl l{{ a.level or 1 }}">Level {{ a.level }}</span> {{ a.title.split(" - ",1)[-1] }} <a href="{{ a.url }}">source</a>{% else %}unavailable. {{ a.error }}{% endif %}</p>{% endfor %}</div>
+{% if plan.advisory %}<div class="card"><h3 style="--c:#E63946">Safety advisory ({{ m.passport }} passport)</h3>
+{% for cc, a in plan.advisory.items() %}<p><b>{{ plan.countries[cc] }}:</b>
+{% for e in a.entries %}{% if e.error %}{{ e.source }}: {{ e.error }}. {% else %}{{ e.source }}: {% if e.tag %}<span class="lvl">{{ e.tag }}</span> {% endif %}{{ e.text }} <a href="{{ e.url }}">source</a>{% if e.updated %} (updated {{ e.updated }}){% endif %}. {% endif %}{% endfor %}</p>{% endfor %}
+{% for a in plan.advisory.values() %}{% if loop.first and a.note %}<p class="est">{{ a.note }}</p>{% endif %}{% endfor %}</div>{% endif %}
 <div class="card"><h3 style="--c:#7B2CBF">Climate in {{ first.start|day }}'s month</h3>
-{% for k, c in plan.climate.items() %}<p><b>{{ k }}:</b> {% if c.day_high_c is defined %}{{ c.day_high_c }}&deg;C day, {{ c.night_low_c }}&deg;C night, {{ c.rain_mm }} mm rain, UV {{ c.uv }} ({{ c.uv_cat }}){% if c.sea_c %}, sea {{ c.sea_c }}&deg;C{% endif %}. <a href="{{ c.url }}">Sunshine Atlas</a>{% else %}unavailable. {{ c.error }}{% endif %}</p>{% endfor %}
+{% for k, c in plan.climate.items() %}<p><b>{{ k }}:</b> {% if c.day_high_c is defined %}{{ c.day_high_c }}&deg;C day, {{ c.night_low_c }}&deg;C night, {{ c.rain_mm }} mm rain over {{ c.rain_days }} days{% if c.sunshine_h %}, {{ c.sunshine_h }} h sun a day{% endif %}. <b>{{ c.warning }}.</b> <span class="est">average of the last {{ c.years }} years, <a href="{{ c.url }}">Open-Meteo</a></span>{% else %}unavailable. {{ c.error }}{% endif %}</p>{% endfor %}
 <p class="est">Forecast: {% set w = plan.weather.values()|list %}{% if w and w[0] is mapping and w[0].error %}not available yet, the trip is beyond the 16-day forecast window.{% else %}see evidence folder.{% endif %}</p></div>
 </div>
 
@@ -173,6 +175,9 @@ a{color:var(--pur)}
 {% for k, ph in plan.photos.items() %}{% for p in ph[:1] %}<figure><img alt="{{ k }}" src="data:image/jpeg;base64,{{ p.b64 }}"><figcaption>{{ k }}: {{ p.credit }} via <a href="{{ p.page }}">Wikimedia Commons</a></figcaption></figure>{% endfor %}{% endfor %}
 </div>
 {% endif %}
+
+{% if plan.not_applicable %}<h2>Not applicable to this trip</h2>
+<div class="card">{% for r in plan.not_applicable %}<p class="est">not applicable: {{ r }}</p>{% endfor %}</div>{% endif %}
 
 <h2>Evidence</h2>
 <div class="card"><table class="ev"><tr><th>Fetch</th><th>Status</th><th>When</th><th>Source</th><th>File</th></tr>
