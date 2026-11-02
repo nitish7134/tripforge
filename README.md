@@ -11,6 +11,8 @@ Minimal input in, designed trip plan out, for **any destination**. The flow is:
 
 Nothing is invented. If a fetch fails, the cell says "unavailable".
 
+All outputs land in `trips/<slug>/` next to where you run it; `TRIPS.md` explains the layout, privacy and cleanup.
+
 ## Install
 
 ```bash
@@ -72,6 +74,8 @@ Your own trips are personal: `trips/` is gitignored except `trips/example-thaila
 - Scrapes page text for the browser fallbacks; Google/Airbnb layout changes can break those parsers (`tests/` has fixtures).
 
 ## Trips folder and the planner agent
+
+See `TRIPS.md` for exactly where files are written and how to delete them.
 
 Each trip lives in `trips/<slug>/`: `brief.yaml` (inputs, however few), `notes.md` (decisions, friend constraints, open questions), `out/` (menu/plan PDF + HTML + PNG) and `evidence/` (every search screenshot). Example: `trips/example-thailand/` (sanitised sample).
 
