@@ -18,6 +18,7 @@ tripforge plan --from BLR --stops "Phuket:2,Krabi:3,Bangkok:5" --start 2026-12-2
 Playwright needs a browser: `playwright install chromium`, or set `--browser headless` to use installed Google Chrome. If Google/Airbnb block the headless browser, use `--browser attach` (see README).
 
 ## Conventions
+- Follow `docs/FETCH_STRATEGY.md`: define what to fetch and how; never add place names, fares or tips to code or data files.
 - Write every trip into `trips/<slug>/` (see `TRIPS.md`); never scatter files elsewhere. Trips are gitignored; commit only sanitised examples.
 - One trip = one folder: `brief.yaml` (inputs), `notes.md` (decisions, constraints, open questions), `out/`, `evidence/`.
 - Commit trips on a branch and open a PR; `main` is protected.
