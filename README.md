@@ -28,17 +28,20 @@ uv venv && uv pip install -e . && .venv/bin/tripforge --help
 destination: Thailand        # any country or region with a Wikivoyage article
 start: 2026-12-24
 nights: 10
-from: BLR
+from: <IATA>                  # required: your home airport (or home_city: <name>)
+currency: <ISO 4217>         # optional: defaults to the home airport country's currency
 people: 2
 prefs: [veg, party]          # also beach, culture, nature, food, or any word
-budget_night: 5000           # stay budget per night, INR
-meal_rate: 1000              # per meal per person (3 a day)
-party_rate: 2500             # per party night per person
+budget_night: <amount>       # optional stay cap per night, in the trip currency (omit for no cap)
+meal_rate: <amount>          # per meal per person (3 a day); required for the daily spend section
+party_rate: <amount>         # per party night per person; required for party trips
 stops: "Bangkok:4,Koh Phangan:4,Krabi:2"   # Name:nights[@IATA]
 end_airport: HKT             # optional: fly home from a different airport
 ```
 
 CLI flags (`--from`, `--stops`, `--start`, `--end-airport`, `--prefs`, `--meal-rate`, `--party-rate`, ...) override the brief. `tripforge plan --trip <slug> ...` creates the folder and writes the merged `brief.yaml`, so a re-run needs no flags.
+
+**Defaults come from your brief; the tool has no home country.** Currency falls back to the home airport's country (Wikidata), money is formatted from an ISO 4217 table, and daily spend is only shown when you give `meal_rate` / `party_rate`. Country-specific hints (visa rules, advisories) come from fetched sources, never from the code.
 
 ## Fetch strategy, not data
 
@@ -50,9 +53,9 @@ tripforge ships no travel data. `docs/FETCH_STRATEGY.md` lists every piece of in
 | --- | --- |
 | Stop coordinates, country | Nominatim (1 req/s, cached 30 days) |
 | Nearest airports | OurAirports CSV (cached in `cache/`, refreshed monthly); stops without an airport within 40 km get the cheapest of up to 3 nearby airports plus a ground row |
-| Flights | `fli` (browserless Google Flights, INR, gl=IN, nonstop, flight numbers); Playwright page fallback when fli is empty twice |
+| Flights | `fli` (browserless Google Flights in your trip currency and home-country market, nonstop, flight numbers); Playwright page fallback when fli is empty twice |
 | Stays | `pyairbnb` (bbox, 10+ reviews, 4.6+, sorted by price); Playwright fallback |
-| Ground legs | `src/tripforge/data/ground.json` table (Thailand examples), else a distance heuristic (road 60 km/h, ferry 30 km/h, INR/km bands), always labelled indicative |
+| Ground legs | `src/tripforge/data/ground.json` table (Thailand examples), else a distance heuristic (road 60 km/h, ferry 30 km/h, USD/km bands converted to your currency via frankfurter.app), always labelled indicative |
 | Places | Wikivoyage See/Do/Eat/Drink listings (with fees), OSM Overpass for veg food and nightlife when the public instance answers |
 | Events | Computed full-moon dates, Wikivoyage and Wikipedia festival mentions in the window |
 | Visa | Wikipedia "Visa requirements for <Demonym> citizens" (live via the MediaWiki API, passport and destination resolved from Wikidata ISO codes; cached 30 days; shows status, stay, revision date, source link). Skipped for domestic trips and for the passport's own country. Passport defaults to the home airport's country (`--passport` / `passport:` override) |
@@ -64,8 +67,9 @@ Cache: `cache/tripforge.db`, TTL flights 8h, stays 24h, places/climate 7d, fx 24
 
 ## Regression trips
 
-- example (sanitised): `--from BLR --stops "Bangkok:4,Koh Phangan:4,Krabi:2" --start 2026-12-24 --end-airport HKT --prefs veg,party`
-- smoke: `--from BLR --stops "Lisbon:3,Porto:2" --start 2026-12-24` (no nonstop BLR-LIS exists, so the flight cells read unavailable)
+- example (sanitised, Thailand from India, brief sets `currency: INR`): `--from BLR --stops "Bangkok:4,Koh Phangan:4,Krabi:2" --start 2026-12-24 --end-airport HKT --prefs veg,party`
+- second example (Europe to Morocco, EUR resolved from the home airport): `trips/example-lisbon-morocco/brief.yaml`
+- smoke: `--from BLR --stops "Lisbon:3,Porto:2" --start 2026-12-24 --currency INR` (no nonstop BLR-LIS exists, so the flight cells read unavailable)
 
 Your own trips are personal: `trips/` is gitignored except `trips/example-thailand/` and `trips/README.md`. Keep real trips in a private location (or a private fork) and commit only sanitised examples here.
 

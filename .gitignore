@@ -1,5 +1,6 @@
 !trips/README.md
 !trips/example-thailand/
+!trips/example-lisbon-morocco/
 # personal trips live outside the repo
 *.pyc
 .venv/

@@ -14,15 +14,17 @@ CARDS_JS = """async () => {
 }"""
 
 _RATING = re.compile(r"([\d.]+) out of 5 average rating,\s*(\d+) reviews?")
-_TOTAL = re.compile(r"([₹$€£]|[A-Z]{3})\s?([\d,]+)\s+for\s+(\d+)\s+nights?")
+_TOTAL = re.compile(r"([^\sA-Za-z\d,.|]{1,3}|[A-Z]{3})\s?([\d,]+)\s+for\s+(\d+)\s+nights?")
 _KIND = re.compile(r"((?:Flat|Apartment|Home|Condo|Townhouse|Villa|Guest house|Guesthouse|Room|Hotel|Hostel|Loft|Bungalow|Cabin|Rental unit|Place)[^|]*? in [^|]+)")
 _AFTER = re.compile(r"\|\s*[\d.]+ \(\d+\)\s*\|\s*([^|]+?)\s*\|")
 
 
 def search_url(slug: str, cin: str, cout: str, adults: int, price_max: int, currency: str,
                room_type: str = "Entire home/apt") -> str:
-    host = "airbnb.co.in" if currency == "INR" else "airbnb.com"
-    qs = {"checkin": cin, "checkout": cout, "adults": adults, "price_max": price_max, "currency": currency}
+    host = "airbnb.com"  # the currency= parameter selects the display currency
+    qs = {"checkin": cin, "checkout": cout, "adults": adults, "currency": currency}
+    if price_max:
+        qs["price_max"] = price_max
     return (f"https://www.{host}/s/{slug}/homes?" + urllib.parse.urlencode(qs) +
             "&room_types%5B%5D=" + urllib.parse.quote(room_type))
 

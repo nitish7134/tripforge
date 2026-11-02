@@ -18,7 +18,7 @@ from .render import render as do_render
 app = typer.Typer(add_completion=False, help="Minimal-input trip planner for any destination: brief -> menu -> plan (HTML/PDF/PNG).")
 console = Console()
 
-BRIEF_KEYS = ("from", "stops", "start", "alt_start", "end_airport", "people", "budget_night", "prefs", "currency",
+BRIEF_KEYS = ("from", "home_city", "stops", "start", "alt_start", "end_airport", "people", "budget_night", "prefs", "currency",
               "passport", "hostels", "meal_rate", "meals_per_day", "party_rate", "party_share", "transport_day",
               "flights_backend", "stays_backend", "browser", "country")
 
@@ -45,17 +45,17 @@ def load_brief(path: Path | None) -> dict:
 
 @app.command()
 def plan(
-    home: Optional[str] = typer.Option(None, "--from", help="Home airport IATA, e.g. BLR"),
+    home: Optional[str] = typer.Option(None, "--from", help="Home airport IATA, e.g. <IATA>; or set home_city in the brief"),
     stops: Optional[str] = typer.Option(None, help='Comma list "City:nights[@IATA]", e.g. "Lisbon:3,Porto:2"'),
     start: Optional[str] = typer.Option(None, help="Start date YYYY-MM-DD"),
     alt_start: Optional[List[str]] = typer.Option(None, "--alt-start", help="Extra start date(s) to compare"),
     end_airport: Optional[str] = typer.Option(None, "--end-airport", help="Fly home from this airport instead of the last stop's"),
     people: Optional[int] = typer.Option(None, help="Travellers (default 2)"),
-    budget_night: Optional[int] = typer.Option(None, "--budget-night", help="Stay budget per night (default 5000)"),
+    budget_night: Optional[int] = typer.Option(None, "--budget-night", help="Stay budget per night, in the trip currency (default: no cap)"),
     prefs: Optional[str] = typer.Option(None, help="Comma list, e.g. veg,party"),
-    meal_rate: Optional[int] = typer.Option(None, "--meal-rate", help="Per meal per person (default 1000)"),
-    party_rate: Optional[int] = typer.Option(None, "--party-rate", help="Per party night per person (default 2500)"),
-    currency: Optional[str] = typer.Option(None, help="Currency (default INR)"),
+    meal_rate: Optional[int] = typer.Option(None, "--meal-rate", help="Per meal per person (needed for the daily spend section)"),
+    party_rate: Optional[int] = typer.Option(None, "--party-rate", help="Per party night per person (needed for party trips)"),
+    currency: Optional[str] = typer.Option(None, help="ISO 4217 code (default: the home airport country's currency)"),
     passport: Optional[str] = typer.Option(None, help="Passport country code (default: home airport country)"),
     country: Optional[str] = typer.Option(None, help="Country hint for resolving stop names"),
     trip: Optional[str] = typer.Option(None, "--trip", help="Trip slug: writes trips/<slug>/{brief.yaml,out/,evidence/,notes.md}"),
@@ -106,7 +106,7 @@ def plan(
             if lg["kind"] == "ground":
                 g = lg["ground"]
                 console.print(f"  {lg['date']} {lg['orig']} -> {lg['dest']} {g['mode']} {g['hours'][0]}-{g['hours'][1]}h "
-                              f"{g['inr'][0]:,}-{g['inr'][1]:,} (indicative, {g['source']})")
+                              f"{(str(g['amount'][0]) + '-' + str(g['amount'][1]) + ' ' + g['currency']) if g.get('amount') else 'price unavailable'} (indicative, {g['source']})")
             elif lg["rows"]:
                 for r in lg["rows"][:2]:
                     console.print(f"  {lg['date']} {r['flight']:8} {r['from']} {r['dep']} -> {r['to']} {r['arr']}  "

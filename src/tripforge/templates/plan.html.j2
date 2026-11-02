@@ -60,7 +60,7 @@ a{color:var(--pur)}
 {% if hero %}<div class="shade"></div>{% endif %}
 <div class="wrap">
 <h1>{{ m.title }}</h1>
-<div class="sub">{{ m.people }} travellers &bull; from {{ m.home_name }} ({{ m.home }}){% if m.end_airport %} &bull; home from {{ m.end_airport }}{% endif %} &bull; nonstop flights only &bull; about {{ m.budget_night|money }} a night for stays</div>
+<div class="sub">{{ m.people }} travellers &bull; from {{ m.home_name }} ({{ m.home }}){% if m.end_airport %} &bull; home from {{ m.end_airport }}{% endif %} &bull; nonstop flights only {% if m.budget_night %}&bull; about {{ m.budget_night|money }} a night for stays{% endif %}</div>
 <div class="sub2">{{ m.prefs|join(", ") if m.prefs else "no preferences set" }} &bull; live searches on {{ m.generated }} &bull; prices in {{ m.currency }}, per person unless stated</div>
 </div></div>
 
@@ -89,7 +89,7 @@ a{color:var(--pur)}
   <div class="row gnd"><div class="fn">{{ g.mode }}</div>
    <div><div class="rt">{{ lg.from_name }} &rarr; {{ lg.to_name }}</div>
     <div class="meta">{{ lg.date|day }} &bull; about {{ g.hours[0] }} to {{ g.hours[1] }} h &bull; ~{{ g.km }} km &bull; INDICATIVE ({{ "typical range table" if g.source == "table" else "distance estimate" }}), book with a local operator</div></div>
-   <div class="pr">{{ g.inr[0]|money }}&ndash;{{ g.inr[1]|money }}</div></div>
+   <div class="pr">{% if g.amount %}{{ g.amount[0]|money }}&ndash;{{ g.amount[1]|money }}{% else %}unavailable{% endif %}</div></div>
  {% elif lg.rows %}
   {% for r in lg.rows %}
   <div class="row{% if not loop.first %} alt{% endif %}">
@@ -128,7 +128,7 @@ a{color:var(--pur)}
 
 <div class="totals">
 <div class="a">Flights {{ o.totals.flights_pp|money }} + stays share {{ o.totals.stays_pp|money }} = {{ o.totals.core_pp|money }} per person (live){% if o.totals.flight_legs_missing or o.totals.stays_missing %} (partial: {{ o.totals.flight_legs_missing }} flight leg(s) and {{ o.totals.stays_missing }} stay(s) unavailable){% endif %}</div>
-<div class="b">Ground legs {{ o.totals.ground_lo_pp|money }}&ndash;{{ o.totals.ground_hi_pp|money }} (indicative) + daily spend {{ o.totals.spend_pp|money }} (your rates) &rarr; all-in about {{ o.totals.all_in_lo_pp|money }} to {{ o.totals.all_in_hi_pp|money }} per person</div>
+<div class="b">Ground legs {{ o.totals.ground_lo_pp|money }}&ndash;{{ o.totals.ground_hi_pp|money }} (indicative){% if o.totals.spend_pp is not none %} + daily spend {{ o.totals.spend_pp|money }} (your rates){% else %}, daily spend not included{% endif %} &rarr; all-in about {{ o.totals.all_in_lo_pp|money }} to {{ o.totals.all_in_hi_pp|money }} per person</div>
 </div>
 </div></div>
 {% endfor %}
@@ -146,8 +146,9 @@ a{color:var(--pur)}
 
 <h2>Daily spend per person <span class="est">(from your brief's rates, not fetched)</span></h2>
 <div class="card">
+{% if first.totals.spend_note %}<p class="est">{{ first.totals.spend_note }}</p>{% else %}
 {% for r in first.totals.spend_rows %}<div class="kv"><span>{{ r.label }}</span><b>{{ r.amount|money }}</b></div>{% endfor %}
-<div class="kv"><span>Total for the trip</span><b>{{ first.totals.spend_pp|money }}</b></div>
+<div class="kv"><span>Total for the trip</span><b>{{ first.totals.spend_pp|money }}</b></div>{% endif %}
 {% if plan.fx %}<p class="est">FX: {% for k,v in plan.fx.items() %}1 {{ v.src }} = {{ v.rate }} {{ v.dst }} ({{ v.date }}){{ "; " if not loop.last }}{% endfor %}.</p>{% endif %}
 {% if plan.events %}<p><b>In your dates:</b> {% for e in plan.events %}{{ e.text }}{{ "; " if not loop.last }}{% endfor %}</p>{% endif %}
 </div>
