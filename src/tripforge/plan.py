@@ -280,7 +280,12 @@ def run_plan(cfg: dict, evid: Path) -> dict:
         ph_f = {s["name"]: ex.submit(fetch_photos, f"{s['name']} {s['country']}", 2, photo_dir) for s in stops}
         # fli is a thin HTTP client; 4 in flight is polite and fast. Browser fallback is serialised by LazyBrowser.
         with ThreadPoolExecutor(max_workers=4) as fx_ex:
-            fl_f = {k: fx_ex.submit(fetch_flight, *k, currency, cfg["flights_backend"], br) for k in need_f}
+            # Browser fallback only for each hop's primary airport pair; alternates are fli-only.
+            prim = {(h["orig"][0]["iata"], h["dest"][0]["iata"], h["date"]) for o in options for h in o["hops"]
+                    if h["kind"] == "fly"}
+            fl_f = {k: fx_ex.submit(fetch_flight, *k, currency,
+                                    cfg["flights_backend"] if k in prim or cfg["flights_backend"] == "browser" else "fli",
+                                    br) for k in need_f}
             stop_for = {(i, s["checkin"], s["checkout"]): s for o in options for i, s in enumerate(o["stops"])}
             st_f = {k: fx_ex.submit(fetch_stay, stop_for[k], k[1], k[2], people, budget, currency,
                                     cfg["stays_backend"], br) for k in need_s}
@@ -318,14 +323,15 @@ def run_plan(cfg: dict, evid: Path) -> dict:
             for org in h["orig"]:
                 for dst in h["dest"]:
                     r = flights.get((org["iata"], dst["iata"], h["date"]))
-                    rows = [x for x in (r.data or []) if x.get("price") is not None][:3] if r and r.ok else []
+                    allrows = (r.data or []) if r and r.ok else []
+                    rows = ([x for x in allrows if x.get("price") is not None] + [x for x in allrows if x.get("price") is None])[:3]
                     post = None
                     if h.get("to_pt") and (dst.get("km", 0) > OWN_AIRPORT_KM or dst["iata"] != h["to_pt"]["iata"]):
                         post = ground.estimate(airport_point(dst), h["to_pt"])
                     pre = None
                     if h.get("from_pt") and org.get("km", 0) > OWN_AIRPORT_KM:
                         pre = ground.estimate(h["from_pt"], airport_point(org))
-                    cost = (rows[0]["price"] if rows else math.inf) + (_gmid(post) if post else 0) + (_gmid(pre) if pre else 0)
+                    cost = (rows[0]["price"] if rows and rows[0]["price"] is not None else math.inf) + (_gmid(post) if post else 0) + (_gmid(pre) if pre else 0)
                     cand = {"org": org, "dst": dst, "r": r, "rows": rows, "pre": pre, "post": post, "cost": cost}
                     if best is None or cost < best["cost"]:
                         best = cand
@@ -346,7 +352,7 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                          "fetched": _fmt_ts(r.fetched_at) if r and r.ok else None,
                          "cached": bool(getattr(r, "cached", False)) if r else False, "alts": alts,
                          "error": None if best["rows"] else (r.error if r else "not fetched")})
-            if best["rows"]:
+            if best["rows"] and best["rows"][0]["price"] is not None:
                 fl_total += best["rows"][0]["price"]
             else:
                 fl_missing += 1

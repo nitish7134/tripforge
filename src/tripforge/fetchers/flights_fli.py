@@ -68,17 +68,25 @@ def fetch_leg(orig: str, dest: str, date: str, currency: str = "INR", country: s
     filt = FlightSearchFilters(passenger_info=PassengerInfo(adults=1), stops=MaxStops.NON_STOP,
                                flight_segments=[FlightSegment(departure_airport=[[a, 0]],
                                                               arrival_airport=[[b, 0]], travel_date=date)])
-    last_err = "fli returned no nonstop flights"
-    for i in range(tries):
+    last_err, merged = "fli returned no nonstop flights", {}
+    # Google sometimes omits the price on a row; one extra query usually fills it. Merge by flight number.
+    for i in range(tries + 1):
         try:
             res = SearchFlights().search(filt, currency=currency, country=country, language="en")
-            rows = to_rows(res, orig, dest, currency)
-            if rows:
-                r = Result(ok=True, data=rows, source_url=url)
-                r.backend = "fli"  # type: ignore[attr-defined]
-                return r
+            for row in to_rows(res, orig, dest, currency):
+                old = merged.get(row["flight"])
+                if old is None or (old["price"] is None and row["price"] is not None):
+                    merged[row["flight"]] = row
         except Exception as e:  # noqa: BLE001
             last_err = f"fli error: {type(e).__name__}: {e}"
-        if i + 1 < tries:
-            time.sleep(1.5)
+        if merged and all(r["price"] is not None for r in merged.values()):
+            break
+        if merged and i + 1 >= tries:
+            break
+        time.sleep(1.0)
+    if merged:
+        rows = sorted(merged.values(), key=lambda r: (r["price"] is None, r["price"] or 0))
+        r = Result(ok=True, data=rows, source_url=url)
+        r.backend = "fli"  # type: ignore[attr-defined]
+        return r
     return fail(last_err, url)

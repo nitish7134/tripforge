@@ -4,3 +4,5 @@ cache/
 __pycache__/
 *.pyc
 dist/
+trips/*/evidence/
+trips/*/out/plan.png
