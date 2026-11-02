@@ -1,5 +1,4 @@
 """Monthly climate normals for any lat/lon from Open-Meteo's archive API (keyless).
-
 Averages the trip month over the last N complete years: day highs, night lows, rain days (>= 1 mm), total rain
 and sunshine hours. The seasonal warning is derived from these numbers, never hand-written per place.
 """
@@ -7,6 +6,7 @@ from __future__ import annotations
 
 import calendar
 import datetime as dt
+import time
 
 from .. import cache
 from .common import Result, client, fail
@@ -38,9 +38,16 @@ def fetch_normals(lat: float, lon: float, month: int) -> Result:
                     params = {"latitude": lat, "longitude": lon, "start_date": f"{y}-{month:02d}-01",
                               "end_date": f"{y}-{month:02d}-{end:02d}", "timezone": "auto",
                               "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,sunshine_duration"}
-                    r = c.get(ARCHIVE, params=params)
+                    for attempt in range(3):
+                        r = c.get(ARCHIVE, params=params)
+                        if r.status_code < 500:
+                            break
+                        time.sleep(1.5 * (attempt + 1))
                     url = str(r.url)
-                    d = r.json()["daily"]
+                    jd = r.json()
+                    d = jd.get("daily")
+                    if d is None:
+                        raise RuntimeError(jd.get("reason", f"HTTP {r.status_code}, no daily data"))
                     ok = [i for i, v in enumerate(d["temperature_2m_max"]) if v is not None]
                     if not ok:
                         continue
@@ -54,7 +61,7 @@ def fetch_normals(lat: float, lon: float, month: int) -> Result:
                         sun.append(sum(sh) / len(sh) / 3600)
                     n += 1
         except Exception as e:  # noqa: BLE001
-            return fail(f"open-meteo archive error: {type(e).__name__}", ARCHIVE)
+            return fail(f"open-meteo archive error: {e or type(e).__name__}", ARCHIVE)
         if not n:
             return fail("open-meteo archive returned no data", ARCHIVE)
         avg = lambda xs: sum(xs) / len(xs)  # noqa: E731
