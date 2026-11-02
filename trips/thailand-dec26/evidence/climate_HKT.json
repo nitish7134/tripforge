@@ -1,0 +1,148 @@
+{
+ "headline": "Phuket, Thailand: sunniest in February (87/100) — 2,260 hours of sun a year.",
+ "destination": {
+  "city": "Phuket",
+  "country": "Thailand",
+  "iata": "HKT",
+  "url": "https://sunshineatlas.com/destinations/phuket-hkt/",
+  "continent": "Asia",
+  "population": 79308,
+  "climate": "tropical monsoon",
+  "destinationType": "beach resort",
+  "annualSunshineHours": 2260,
+  "bestMonth": "February",
+  "sunshineScoreYear": 69,
+  "peakMiddayUvIndex": 11,
+  "peakMiddayUvCategory": "extreme",
+  "monthly": [
+   {
+    "month": "January",
+    "sunshineScore": 77,
+    "dayHighC": 28,
+    "nightLowC": 26,
+    "rainMm": 80,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": 29
+   },
+   {
+    "month": "February",
+    "sunshineScore": 87,
+    "dayHighC": 29,
+    "nightLowC": 26,
+    "rainMm": 27,
+    "middayUvIndex": 11,
+    "middayUvCategory": "extreme",
+    "seaTempC": 30
+   },
+   {
+    "month": "March",
+    "sunshineScore": 71,
+    "dayHighC": 30,
+    "nightLowC": 27,
+    "rainMm": 112,
+    "middayUvIndex": 11,
+    "middayUvCategory": "extreme",
+    "seaTempC": 31
+   },
+   {
+    "month": "April",
+    "sunshineScore": 65,
+    "dayHighC": 30,
+    "nightLowC": 28,
+    "rainMm": 145,
+    "middayUvIndex": 11,
+    "middayUvCategory": "extreme",
+    "seaTempC": 31
+   },
+   {
+    "month": "May",
+    "sunshineScore": 65,
+    "dayHighC": 29,
+    "nightLowC": 28,
+    "rainMm": 265,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": 32
+   },
+   {
+    "month": "June",
+    "sunshineScore": 65,
+    "dayHighC": 29,
+    "nightLowC": 28,
+    "rainMm": 281,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": 31
+   },
+   {
+    "month": "July",
+    "sunshineScore": 65,
+    "dayHighC": 28,
+    "nightLowC": 27,
+    "rainMm": 264,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": 30
+   },
+   {
+    "month": "August",
+    "sunshineScore": 65,
+    "dayHighC": 28,
+    "nightLowC": 27,
+    "rainMm": 310,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": 31
+   },
+   {
+    "month": "September",
+    "sunshineScore": 65,
+    "dayHighC": 28,
+    "nightLowC": 27,
+    "rainMm": 352,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": 29
+   },
+   {
+    "month": "October",
+    "sunshineScore": 65,
+    "dayHighC": 28,
+    "nightLowC": 27,
+    "rainMm": 336,
+    "middayUvIndex": 9,
+    "middayUvCategory": "very high",
+    "seaTempC": 30
+   },
+   {
+    "month": "November",
+    "sunshineScore": 65,
+    "dayHighC": 28,
+    "nightLowC": 27,
+    "rainMm": 219,
+    "middayUvIndex": 8,
+    "middayUvCategory": "very high",
+    "seaTempC": 30
+   },
+   {
+    "month": "December",
+    "sunshineScore": 67,
+    "dayHighC": 28,
+    "nightLowC": 26,
+    "rainMm": 137,
+    "middayUvIndex": 8,
+    "middayUvCategory": "very high",
+    "seaTempC": 30
+   }
+  ]
+ },
+ "attribution": {
+  "source": "Sunshine Atlas",
+  "site": "https://sunshineatlas.com",
+  "license": "CC BY 4.0 — free to use with credit and a link",
+  "data": "https://sunshineatlas.com/data/",
+  "methodology": "https://sunshineatlas.com/methodology/",
+  "note": "Sunshine Score is 0–100 per month, from long-term climate normals (not a forecast). middayUvIndex is a typical midday value on the WHO scale (0–2 low, 3–5 moderate, 6–7 high, 8–10 very high, 11+ extreme), modelled from NASA POWER climatology — climatology, not today's UV forecast. When citing, link the destination url fields."
+ }
+}
