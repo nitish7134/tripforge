@@ -1,0 +1,22 @@
+# tripforge brief · sanitised example 3 (domestic family trip, rail-friendly)
+# A family of three, one January week-and-a-bit, round trip from a mid-country city. Currency, passport and
+# country resolve from the home airport. No party section: no party pref and no party_rate.
+
+destination: Rajasthan, India
+from: NAG
+people: 3
+start: 2027-01-10
+nights: 8
+pace: relaxed
+prefs: [culture, veg]
+meal_rate: 400              # per meal per person, in the home currency
+stops: "Jaipur:2,Jodhpur:2,Jaisalmer:2,Udaipur:2"
+
+ground:
+  rail_ok: true
+  night_travel_ok: true     # false drops any train that runs between 22:00 and 05:00
+  rail_max_hours: 26        # longest single train leg worth showing
+flights:
+  max_total_hours_if_stop: 12   # one-stop fallback when no nonstop exists
+stays:
+  guests: 3                 # entire place or family room that sleeps all three

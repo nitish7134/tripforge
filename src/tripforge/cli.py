@@ -20,7 +20,7 @@ console = Console()
 
 BRIEF_KEYS = ("from", "home_city", "stops", "start", "alt_start", "end_airport", "people", "budget_night", "prefs", "currency",
               "passport", "hostels", "meal_rate", "meals_per_day", "party_rate", "party_share", "transport_day",
-              "flights_backend", "stays_backend", "browser", "country")
+              "flights_backend", "stays_backend", "browser", "country", "pace", "ground", "flights", "stays", "destination")
 
 
 def slugify(s: str) -> str:
@@ -103,10 +103,18 @@ def plan(
         console.print(f"[bold]Option {o['start']}[/bold] core/person {t['core_pp']:,} (missing legs "
                       f"{t['flight_legs_missing']}, stays {t['stays_missing']}); all-in {t['all_in_lo_pp']:,}-{t['all_in_hi_pp']:,}")
         for lg in o["legs"]:
-            if lg["kind"] == "ground":
+            if lg["kind"] == "rail":
+                if lg["rows"]:
+                    for r in lg["rows"][:2]:
+                        console.print(f"  {lg['date']} train {r['train']:6} {lg['from_name']} {r['dep']} -> {lg['to_name']} {r['arr']}"
+                                      f"{' (+1)' if r.get('next_day') else ''}  fare unavailable (indicative, {lg['adapter']})"
+                                      f"{'  [counted in totals]' if lg.get('used') else ''}")
+                else:
+                    console.print(f"  {lg['date']} rail {lg['from_name']} -> {lg['to_name']} unavailable ({lg['error']})")
+            elif lg["kind"] == "ground":
                 g = lg["ground"]
                 console.print(f"  {lg['date']} {lg['orig']} -> {lg['dest']} {g['mode']} {g['hours'][0]}-{g['hours'][1]}h "
-                              f"{(str(g['amount'][0]) + '-' + str(g['amount'][1]) + ' ' + g['currency']) if g.get('amount') else 'price unavailable'} (indicative, {g['source']})")
+                              f"{(str(g['amount'][0]) + '-' + str(g['amount'][1]) + ' ' + g['currency']) if g.get('amount') else 'price unavailable'} (indicative, {g['source']}){' [alt]' if lg.get('alt') else ''}")
             elif lg["rows"]:
                 for r in lg["rows"][:2]:
                     console.print(f"  {lg['date']} {r['flight']:8} {r['from']} {r['dep']} -> {r['to']} {r['arr']}  "

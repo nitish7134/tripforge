@@ -60,7 +60,7 @@ a{color:var(--pur)}
 {% if hero %}<div class="shade"></div>{% endif %}
 <div class="wrap">
 <h1>{{ m.title }}</h1>
-<div class="sub">{{ m.people }} travellers &bull; from {{ m.home_name }} ({{ m.home }}){% if m.end_airport %} &bull; home from {{ m.end_airport }}{% endif %} {% if m.has_flights %}&bull; nonstop flights only {% endif %}{% if m.budget_night %}&bull; about {{ m.budget_night|money }} a night for stays{% endif %}</div>
+<div class="sub">{{ m.people }} travellers &bull; from {{ m.home_name }} ({{ m.home }}){% if m.end_airport %} &bull; home from {{ m.end_airport }}{% endif %}{% if m.budget_night %}&bull; about {{ m.budget_night|money }} a night for stays{% endif %}</div>
 <div class="sub2">{{ m.prefs|join(", ") if m.prefs else "no preferences set" }} &bull; live searches on {{ m.generated }} &bull; prices in {{ m.currency }}, per person unless stated</div>
 </div></div>
 
@@ -69,7 +69,7 @@ a{color:var(--pur)}
 {% set b = dec.best %}
 {% if b %}
 <div class="big">{{ plan.options|length }} option{{ "s" if plan.options|length>1 }} priced; best core cost is {{ b.start|short }} to {{ b.end|short }} at {{ b.totals.core_pp|money }} a person</div>
-<p>Core cost = nonstop flights + stays share. {% for o in plan.options %}{{ o.start|short }} start: {{ o.totals.core_pp|money }}{% if o.totals.flight_legs_missing or o.totals.stays_missing %} (partial){% endif %}{{ "; " if not loop.last }}{% endfor %}. Food, drinks and tours come on top (estimates below).</p>
+<p>Core cost = flights (or rail where no flight is priced) + stays share. {% for o in plan.options %}{{ o.start|short }} start: {{ o.totals.core_pp|money }}{% if o.totals.flight_legs_missing or o.totals.stays_missing %} (partial){% endif %}{{ "; " if not loop.last }}{% endfor %}. Food, drinks and tours come on top (estimates below).</p>
 {% else %}
 <div class="big">Some prices could not be fetched live</div>
 <p>Cells marked unavailable were not fabricated. Core cost so far: {% for o in plan.options %}{{ o.start|short }} start: {{ o.totals.core_pp|money }} (partial){{ "; " if not loop.last }}{% endfor %}. Re-run with <code>--browser attach</code> if a site blocked the headless browser.</p>
@@ -82,7 +82,7 @@ a{color:var(--pur)}
 <div class="hd"><div class="tag">OPTION {{ loop.index }}{% if dec.best and o.start == dec.best.start %} &bull; LOWEST CORE COST{% endif %}</div>
 <div class="t">{{ o.stops|map(attribute="name")|join(" &rarr; ")|safe }} &nbsp; {{ o.start|day }} to {{ o.end|day }} ({{ o.nights }} nights)</div></div>
 <div class="body">
-<h3>Getting around (flights per person, one-way nonstop, Google Flights; ground rows indicative)</h3>
+<h3>Getting around (per person, one way; flights are live fare reads, rail and road rows indicative)</h3>
 {% for lg in o.legs %}
  {% if lg.kind == "ground" %}
   {% set g = lg.ground %}
@@ -90,12 +90,24 @@ a{color:var(--pur)}
    <div><div class="rt">{{ lg.from_name }} &rarr; {{ lg.to_name }}</div>
     <div class="meta">{{ lg.date|day }} &bull; about {{ g.hours[0] }} to {{ g.hours[1] }} h &bull; ~{{ g.km }} km &bull; INDICATIVE ({{ g.source }}{% if g.mode == "ferry" and "no road" in g.source %}, no road route{% endif %}){% if g.note %} &bull; {{ g.note }}{% endif %}, book with a local operator</div></div>
    <div class="pr">{% if g.amount %}from {{ g.amount[0]|money }}{% else %}fare unavailable{% endif %}<div class="meta"><a href="{{ g.fare_url or g.link }}">12Go</a></div></div></div>
+ {% elif lg.kind == "rail" %}
+  {% if lg.rows %}
+  {% for r in lg.rows[:3] %}
+  <div class="row gnd{% if not loop.first %} alt{% endif %}"><div class="fn">Train {{ r.train }}</div>
+   <div><div class="rt">{{ lg.from_name }} {{ r.dep }} &rarr; {{ lg.to_name }} {{ r.arr }}{% if r.next_day %} (+1){% endif %}</div>
+    <div class="meta">{{ r.name }} &bull; {{ lg.date|day }} &bull; {{ r.duration_min|dur }} &bull; classes {{ r.classes|join(", ") or "not listed" }} &bull; INDICATIVE, check running days{% if r.early %} &bull; early departure{% endif %}{% if loop.first and lg.used %} &bull; counted in totals (fare unavailable){% endif %}{% if loop.first %} &bull; {{ lg.adapter }}, fetched {{ lg.fetched }}{% endif %}</div></div>
+   <div class="pr">{% if r.fare %}{{ r.fare|money }}{% else %}fare unavailable{% endif %}<div class="meta"><a href="{{ lg.source_url }}">timetable</a></div></div></div>
+  {% endfor %}
+  {% else %}
+  <div class="na">Rail {{ lg.from_name }} &rarr; {{ lg.to_name }}: unavailable<small>{{ lg.error }}{% if lg.source_url %} &bull; <a href="{{ lg.source_url }}">source</a>{% endif %}</small></div>
+  {% endif %}
+  {% if lg.note %}<div class="est">By train, per Wikivoyage ({{ lg.note.tag }}): {{ lg.note.text }} <a href="{{ lg.note.url }}">source</a></div>{% endif %}
  {% elif lg.rows %}
   {% for r in lg.rows %}
   <div class="row{% if not loop.first %} alt{% endif %}">
    <div class="fn">{{ r.flight }}</div>
    <div><div class="rt">{{ r.from }} {{ r.dep }} &rarr; {{ r.to }} {{ r.arr }}{% if r.next_day %} (+1){% endif %}</div>
-    <div class="meta">{{ r.airline }} &bull; {{ lg.date|day }} &bull; {{ r.duration_min|dur }} nonstop{% if loop.first %} &bull; cheapest &bull; live via {{ lg.backend }}, fetched {{ lg.fetched }}{% for a in lg.alts %}{% if a.price %} &bull; via {{ a.iata }}: {{ a.price|money }}{% endif %}{% endfor %}{% endif %}</div></div>
+    <div class="meta">{{ r.airline }} &bull; {{ lg.date|day }} &bull; {{ r.duration_min|dur }} {% if r.via %}one stop via {{ r.via }}{% else %}nonstop{% endif %}{% if loop.first and lg.used %} &bull; counted in totals{% endif %}{% if loop.first %} &bull; cheapest &bull; live via {{ lg.backend }}, fetched {{ lg.fetched }}{% for a in lg.alts %}{% if a.price %} &bull; via {{ a.iata }}: {{ a.price|money }}{% endif %}{% endfor %}{% endif %}</div></div>
    <div class="pr">{{ r.price|money }}</div>
   </div>
   {% endfor %}
@@ -127,7 +139,7 @@ a{color:var(--pur)}
 <ul class="plan">{% for d in o.days_plan %}<li><b>{{ d.date }}, {{ d.place }}:</b> {{ d.text }}{% if d.extra %} <span class="est">({{ d.extra }})</span>{% endif %}</li>{% endfor %}</ul>
 
 <div class="totals">
-<div class="a">Flights {{ o.totals.flights_pp|money }} + stays share {{ o.totals.stays_pp|money }} = {{ o.totals.core_pp|money }} per person (live){% if o.totals.flight_legs_missing or o.totals.stays_missing %} (partial: {{ o.totals.flight_legs_missing }} flight leg(s) and {{ o.totals.stays_missing }} stay(s) unavailable){% endif %}</div>
+<div class="a">Flights {{ o.totals.flights_pp|money }} + stays share {{ o.totals.stays_pp|money }} = {{ o.totals.core_pp|money }} per person (live; rail fares are not read, so legs by train add nothing){% if o.totals.flight_legs_missing or o.totals.rail_fares_missing or o.totals.stays_missing %} (partial: {{ o.totals.flight_legs_missing }} flight leg(s), {{ o.totals.rail_fares_missing }} rail fare(s) and {{ o.totals.stays_missing }} stay(s) unavailable){% endif %}</div>
 <div class="b">Ground legs {{ o.totals.ground_lo_pp|money }}&ndash;{{ o.totals.ground_hi_pp|money }} (indicative){% if o.totals.spend_pp is not none %} + daily spend {{ o.totals.spend_pp|money }} (your rates){% else %}, daily spend not included{% endif %} &rarr; all-in about {{ o.totals.all_in_lo_pp|money }} to {{ o.totals.all_in_hi_pp|money }} per person</div>
 </div>
 </div></div>

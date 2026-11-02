@@ -16,6 +16,7 @@ from rich.console import Console
 from . import cache, events, ground, money
 from .fetchers import airports as AP
 from .fetchers import flights_fli as FL
+from .fetchers import rail as RL
 from .fetchers import stays_pyairbnb as SP
 from .fetchers.common import Result, fail
 from .fetchers.geo import stay_bbox
@@ -24,7 +25,7 @@ from .fetchers.climate import fetch_normals
 from .fetchers.misc import fetch_fx, fetch_weather
 from .fetchers.visa import visa_requirement
 from .fetchers.photos import fetch_photos
-from .fetchers.places import diets_in, stop_places
+from .fetchers.places import diets_in, stop_places, wikivoyage
 from .stops import OWN_AIRPORT_KM, StopError, airport_point, parse_spec
 
 console = Console(stderr=True)
@@ -34,7 +35,8 @@ console = Console(stderr=True)
 DEFAULTS = {"people": 2, "budget_night": None, "prefs": [], "currency": None, "passport": None,
             "meal_rate": None, "meals_per_day": 3, "party_rate": None, "party_share": 0.5,
             "transport_day": None, "hostels": False, "max_ground_hours": 6, "flights_backend": "auto", "stays_backend": "auto",
-            "browser": "headless", "alt_start": [], "end_airport": None, "country": ""}
+            "browser": "headless", "alt_start": [], "end_airport": None, "country": "",
+            "ground": {}, "flights": {}, "stays": {}, "pace": "balanced"}
 
 
 class PlanError(ValueError):
@@ -171,7 +173,7 @@ class LazyBrowser:
 def fetch_stay(s: dict, cin: str, cout: str, people: int, budget: int, currency: str, backend: str, br_get,
                room_type: str = "Entire home/apt") -> Result:
     params = {"name": s["name"], "cc": s["cc"], "cin": cin, "cout": cout, "p": people, "b": budget,
-              "ccy": currency, "rt": room_type, "v": 1}
+              "ccy": currency, "rt": room_type, "v": 2}
     if backend != "browser":
         def go():
             bb = stay_bbox(s["name"], s.get("country", ""), (s.get("areas") or [[None]])[0][0], s["lat"], s["lon"],
@@ -194,6 +196,53 @@ def fetch_stay(s: dict, cin: str, cout: str, people: int, budget: int, currency:
     return r
 
 
+# ---------------------------------------------------------------- rail + pace helpers
+RAIL_MAX_HOURS = 18  # brief key ground.rail_max_hours overrides
+PACE_SIGHTS = {"relaxed": 2, "balanced": 3, "packed": 4}  # sights per day
+EARLY_MIN = 8 * 60  # relaxed pace avoids transfers that start before 08:00
+
+
+def wants_nightlife(prefs: list[str], cfg: dict) -> bool:
+    """Party / bars sections exist only for travellers who asked for them (pref or a party budget)."""
+    return any(p in ("party", "nightlife") for p in prefs) or (cfg.get("party_rate") or 0) > 0
+
+
+def hop_ends(o: dict, home: dict, home_cc: str) -> list[tuple]:
+    """[(hop, from_name, to_name, from_cc, to_cc)] for the hops of one option, in order."""
+    out, pname, pcc = [], home["name"], home_cc
+    for h in o["hops"]:
+        if h["to_idx"] is None:
+            tname, tcc = home["name"], home_cc
+        else:
+            st = o["stops"][h["to_idx"]]
+            tname, tcc = st["name"], st["cc"]
+        out.append((h, pname, tname, pcc, tcc))
+        pname, pcc = tname, tcc
+    return out
+
+
+def rail_leg(h: dict, fname: str, tname: str, q: dict, note: dict | None, pace: str) -> dict:
+    rows = list(q.get("rows") or [])
+    if pace == "relaxed":  # prefer a civilised departure, then the shortest
+        rows.sort(key=lambda r: (r["dep_min"] < EARLY_MIN, r["duration_min"]))
+    for r in rows:
+        r["next_day"] = r["dep_min"] + r["duration_min"] >= 1440
+        r["early"] = r["dep_min"] < EARLY_MIN
+    return {"kind": "rail", "date": h["date"], "from_name": fname, "to_name": tname, "to_idx": h["to_idx"],
+            "rows": rows, "ok": bool(rows), "error": q.get("error"), "source_url": q.get("url", ""),
+            "adapter": q.get("adapter"), "dropped": q.get("dropped", 0), "note": note, "used": False,
+            "fetched": _fmt_ts(q["fetched_at"]) if q.get("fetched_at") else None, "tag": "indicative"}
+
+
+def _rail_for(h: dict, ends: dict, rails: dict, by_train: dict, pace: str) -> dict | None:
+    _, fn, tn, fcc, tcc = ends[id(h)]
+    q = rails.get((fn, tn, fcc, h["date"]))
+    if q is None or fcc != tcc or fn == tn:
+        return None
+    r = by_train.get(tn)
+    return rail_leg(h, fn, tn, q, r if r else None, pace)
+
+
 # ---------------------------------------------------------------- day plan
 def day_items(s: dict, places: dict, prefs: list[str]) -> list[str]:
     hl = list(s.get("highlights") or [])
@@ -207,41 +256,72 @@ def day_items(s: dict, places: dict, prefs: list[str]) -> list[str]:
     return items or [f"Explore {s['name']}"]
 
 
-def build_days(opt: dict, places: dict, prefs: list[str]) -> list[dict]:
+def _arrival(arr: list[dict]) -> tuple[str, dict | None]:
+    """The way this stop is reached, as day-plan text: the leg the totals use (flight, else used rail)."""
+    fl = next((lg for lg in arr if lg["kind"] == "flight" and lg["rows"]), None)
+    rl = next((lg for lg in arr if lg["kind"] == "rail" and lg.get("used")), None)
+    if fl and not (rl and not fl["rows"][0].get("price")):
+        r = fl["rows"][0]
+        return f"Arrive {r['arr']} on {r['flight']}" + (" (one stop)" if fl.get("one_stop") else ""), fl
+    if rl and rl["rows"]:
+        r = rl["rows"][0]
+        return (f"Arrive {r['arr']}{' next day' if r.get('next_day') else ''} by train {r['train']} {r['name']}"
+                + (f" (departs {r['dep']}, an early start)" if r.get("early") else "")), rl
+    return "", None
+
+
+def build_days(opt: dict, places: dict, prefs: list[str], pace: str = "balanced", night_on: bool | None = None) -> list[dict]:
+    """One row per night. Pace caps the sights a day carries; nightlife appears only when the traveller wants it."""
     out = []
     legs = opt["legs"]
+    per_day = PACE_SIGHTS.get(pace, 3)
+    if night_on is None:
+        night_on = "party" in prefs
     for i, s in enumerate(opt["stops"]):
         arr = [lg for lg in legs if lg.get("to_idx") == i]
-        fl = next((lg for lg in arr if lg["kind"] == "flight" and lg["rows"]), None)
         p = places.get(s["name"], {})
         items = day_items(s, p, prefs)
         diet = {d: [x["name"] for x in v] for d, v in (p.get("diet") or {}).items()}
-        night = [x["name"] for x in p.get("nightlife", [])]
+        night = [x["name"] for x in p.get("nightlife", [])] if night_on else []
         d0 = _d(s["checkin"])
+        cur = 0
         for k in range(s["nights"]):
-            text = items[k % len(items)]
-            if k == 0 and fl:
-                text = f"Arrive {fl['rows'][0]['arr']} on {fl['rows'][0]['flight']}" + (
-                    " then " + arr[-1]["ground"]["mode"] if arr[-1]["kind"] == "ground" else "") + ". " + text
-            elif k == 0 and arr and arr[-1]["kind"] == "ground":
-                text = f"Transfer by {arr[-1]['ground']['mode']} (about {arr[-1]['ground']['hours'][0]}h). " + text
+            n = max(1, per_day - 1) if k == 0 and arr else per_day  # a travel day carries one sight fewer
+            picked = [items[(cur + j) % len(items)] for j in range(min(n, len(items)))]
+            cur += len(picked)
+            text = "; ".join(dict.fromkeys(picked))
+            road = next((lg for lg in arr if lg["kind"] == "ground" and not lg.get("alt")), None)
+            if k == 0:
+                head, _ = _arrival(arr)
+                if head:
+                    text = head + (f", then {road['ground']['mode']}" if road and arr[-1] is road else "") + ". " + text
+                elif road:
+                    text = f"Transfer by {road['ground']['mode']} (about {road['ground']['hours'][0]}h). " + text
             extra = []
             for d, names in diet.items():
                 if names:
                     extra.append(f"{d}: {names[k % len(names)]}")
-            if "party" in prefs and night and k % 2 == 0:
+            if night_on and "party" in prefs and night and k % 2 == 0:
                 extra.append(f"night out: {night[(k // 2) % len(night)]}")
             out.append({"date": (d0 + dt.timedelta(days=k)).strftime("%a %d %b"), "place": s["name"], "text": text,
                         "extra": "; ".join(extra)})
     last = legs[-1] if legs else None
-    if last and last["kind"] == "ground":
-        return out + [{"date": _d(opt["end"]).strftime("%a %d %b"), "place": "Return", "extra": "",
+    end = _d(opt["end"]).strftime("%a %d %b")
+    ret = [lg for lg in legs if lg.get("to_idx") is None]
+    rl = next((lg for lg in ret if lg["kind"] == "rail" and lg.get("used") and lg["rows"]), None)
+    fl = next((lg for lg in reversed(ret) if lg["kind"] == "flight"), None)
+    if rl and not (fl and fl["rows"] and fl["rows"][0].get("price")):
+        r = rl["rows"][0]
+        return out + [{"date": end, "place": "Return", "extra": "",
+                       "text": f"Train home {r['train']} {r['name']}, departs {r['dep']}, arrives {r['arr']}"
+                               f"{' next day' if r.get('next_day') else ''}."}]
+    if last and last["kind"] == "ground" and not last.get("alt") and not fl:
+        return out + [{"date": end, "place": "Return", "extra": "",
                        "text": f"Head home by {last['ground']['mode']} (about {last['ground']['hours'][0]}h)."}]
-    last = next((lg for lg in reversed(legs) if lg["kind"] == "flight"), None)
-    p = last["rows"][0] if last and last["rows"] else None
-    out.append({"date": _d(opt["end"]).strftime("%a %d %b"), "place": "Return", "extra": "",
-                "text": (f"Fly home {p['flight']} {p['dep']} from {last['orig']}." if p
-                         else f"Fly home from {last['orig'] if last else 'the last airport'}.")})
+    p = fl["rows"][0] if fl and fl["rows"] else None
+    out.append({"date": end, "place": "Return", "extra": "",
+                "text": (f"Fly home {p['flight']} {p['dep']} from {fl['orig']}." if p
+                         else f"Fly home from {fl['orig'] if fl else 'the last airport'}.")})
     return out
 
 
@@ -284,6 +364,14 @@ def run_plan(cfg: dict, evid: Path) -> dict:
         raise PlanError(str(e)) from e
     cfg["from"] = home_ap["iata"]
     people = int(cfg["people"])
+    gset, fset, sset = (cfg.get(k) or {} for k in ("ground", "flights", "stays"))
+    rail_ok = bool(gset.get("rail_ok"))
+    night_ok = bool(gset.get("night_travel_ok", True))
+    rail_max = float(gset.get("rail_max_hours", RAIL_MAX_HOURS))
+    stop_h = float(fset["max_total_hours_if_stop"]) if fset.get("max_total_hours_if_stop") else None
+    guests = int(sset.get("guests", people))  # who the stay must sleep; cost is still split over `people`
+    pace = str(cfg.get("pace") or "balanced").lower()
+    night_on = wants_nightlife(prefs, cfg)
     budget = int(cfg["budget_night"]) if cfg.get("budget_night") else 0  # 0 = no nightly cap on stay searches
     cfg["passport"] = str(cfg.get("passport") or home_ap["cc"]).upper()  # default: the home country's passport
     home = {"iata": home_ap["iata"], "name": home_ap["city"] or home_ap["name"], "lat": home_ap["lat"],
@@ -327,6 +415,13 @@ def run_plan(cfg: dict, evid: Path) -> dict:
         wx_f = {s["name"]: ex.submit(fetch_weather, s["lat"], s["lon"], starts[0], options[0]["end"], evid, s["name"])
                 for s in stops}
         ph_f = {s["name"]: ex.submit(fetch_photos, f"{s['name']} {s['country']}", 2, photo_dir) for s in stops}
+        rail_f, bt_f = {}, {}
+        if rail_ok:  # rail quotes per hop + the destination's own "By train" text, read in parallel
+            for o in options:
+                for h, fn, tn, fcc, tcc in hop_ends(o, home, home_ap["cc"]):
+                    if fcc == tcc and fn != tn:
+                        rail_f[(fn, tn, fcc, h["date"])] = ex.submit(RL.quote, fn, tn, fcc, h["date"], rail_max, night_ok)
+                        bt_f.setdefault(tn, ex.submit(RL.by_train_note, tn))
         # fli is a thin HTTP client; 4 in flight is polite and fast. Browser fallback is serialised by LazyBrowser.
         with ThreadPoolExecutor(max_workers=4) as fx_ex:
             # Browser fallback only for each hop's primary airport pair; alternates are fli-only.
@@ -336,11 +431,11 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                                     cfg["flights_backend"] if k in prim or cfg["flights_backend"] == "browser" else "fli",
                                     br, home_ap["cc"]) for k in need_f}
             stop_for = {(i, s["checkin"], s["checkout"]): s for o in options for i, s in enumerate(o["stops"])}
-            st_f = {k: fx_ex.submit(fetch_stay, stop_for[k], k[1], k[2], people, budget, currency,
+            st_f = {k: fx_ex.submit(fetch_stay, stop_for[k], k[1], k[2], guests, budget, currency,
                                     cfg["stays_backend"], br) for k in need_s}
             rm_f = {}
             if cfg["hostels"]:
-                rm_f = {k: fx_ex.submit(fetch_stay, stop_for[k], k[1], k[2], people, (max(int(budget * 0.4), 1) if budget else 0),
+                rm_f = {k: fx_ex.submit(fetch_stay, stop_for[k], k[1], k[2], guests, (max(int(budget * 0.4), 1) if budget else 0),
                                         currency, "pyairbnb", br, "Private room") for k in need_s}
             flights = {k: f.result() for k, f in fl_f.items()}
             stays = {k: f.result() for k, f in st_f.items()}
@@ -353,6 +448,8 @@ def run_plan(cfg: dict, evid: Path) -> dict:
         clim = {k: f.result() for k, f in clim_f.items()}
         wx = {k: f.result() for k, f in wx_f.items()}
         photos = {k: f.result() for k, f in ph_f.items()}
+        rails = {k: f.result() for k, f in rail_f.items()}
+        by_train = {k: f.result() for k, f in bt_f.items()}
     br.close()
     local_ccys = sorted({r.data for r in curr.values() if r.ok and r.data and r.data != currency})
     fx = {c: cache.cached("fx", {"s": c, "d": currency}, lambda c=c: fetch_fx(c, currency, evid)) for c in local_ccys}
@@ -362,12 +459,16 @@ def run_plan(cfg: dict, evid: Path) -> dict:
     # ---- assemble options
     out_opts = []
     for o in options:
-        legs, fl_total, fl_missing, g_lo, g_hi = [], 0, 0, 0, 0
+        legs, fl_total, fl_missing, g_lo, g_hi, rail_missing = [], 0, 0, 0, 0, 0
+        ends = {id(e[0]): e for e in hop_ends(o, home, home_ap["cc"])}
         for h in o["hops"]:
             if h["kind"] == "ground":
                 lg = _ground_leg(h["a"], h["b"], h["date"], h["from_name"], h["to_name"], h["to_idx"], currency)
                 legs.append(lg)
                 g_lo, g_hi = _gadd(g_lo, g_hi, lg["ground"])
+                rl = _rail_for(h, ends, rails, by_train, pace)
+                if rl:
+                    legs.append(rl)  # road is the priced row; rail is shown beside it
                 continue
             # choose the cheapest (flight + onward ground) among candidate arrival airports
             best = None
@@ -387,6 +488,16 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                     if best is None or cost < best["cost"]:
                         best = cand
             r = best["r"]
+            one_stop = False
+            if not best["rows"] and stop_h:  # no nonstop: one stop within the brief's total-time limit
+                r1 = cache.cached("flights:fli1", {"o": best["org"]["iata"], "d": best["dst"]["iata"], "date": h["date"],
+                                                   "ccy": currency, "gl": home_ap["cc"], "h": stop_h, "v": 1},
+                                  lambda: FL.fetch_leg_one_stop(best["org"]["iata"], best["dst"]["iata"], h["date"],
+                                                                currency, home_ap["cc"], stop_h))
+                if r1.ok and r1.data:
+                    best["rows"] = ([x for x in r1.data if x.get("price") is not None] + [x for x in r1.data if x.get("price") is None])[:3]
+                    r, one_stop = r1, True
+                    r.backend = "fli"  # type: ignore[attr-defined]
             if best["pre"]:
                 lg = _ground_leg(h["from_pt"], airport_point(best["org"]), h["date"], h["from_name"],
                                  f"{best['org']['iata']} airport", None, currency)
@@ -402,16 +513,31 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                          "backend": getattr(r, "backend", "none") if r else "none",
                          "fetched": _fmt_ts(r.fetched_at) if r and r.ok else None,
                          "cached": bool(getattr(r, "cached", False)) if r else False, "alts": alts,
+                         "one_stop": one_stop,
                          "error": None if best["rows"] else (r.error if r else "not fetched")})
-            if best["rows"] and best["rows"][0]["price"] is not None:
+            priced = bool(best["rows"]) and best["rows"][0]["price"] is not None
+            next(lg for lg in reversed(legs) if lg["kind"] == "flight")["used"] = priced
+            if priced:
                 fl_total += best["rows"][0]["price"]
-            else:
-                fl_missing += 1
             if best["post"]:
                 lg = _ground_leg(airport_point(best["dst"]), h["to_pt"], h["date"], f"{best['dst']['iata']} airport",
                                  h["to_name"], h["to_idx"], currency)
                 legs.append(lg)
                 g_lo, g_hi = _gadd(g_lo, g_hi, lg["ground"])
+            rl = _rail_for(h, ends, rails, by_train, pace)
+            if rl:
+                legs.append(rl)
+                road = _ground_leg(h.get("from_pt") or home, h.get("to_pt") or home, h["date"], rl["from_name"],
+                                   rl["to_name"], h["to_idx"], currency)
+                if road["ground"].get("mode") == "road" and road["ground"]["hours"][0] <= rail_max:
+                    road["alt"] = True  # shown beside rail and flights, never added to the totals
+                    legs.append(road)
+            if not priced:  # totals use the cheapest option that fits the brief; a rail fare is never invented
+                if rl and rl["rows"]:
+                    rl["used"] = True
+                    rail_missing += 1
+                else:
+                    fl_missing += 1
 
         st_total, st_missing, stop_out = 0, 0, []
         for i, s in enumerate(o["stops"]):
@@ -427,7 +553,8 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                                                       "airport", "airport_km")},
                              "areas": s.get("areas") or [], "highlights": s.get("highlights") or [],
                              "guide_found": s.get("guide_found"), "guide_url": s.get("guide_url"),
-                             "places": {"diet": pl.get("diet", {}), **{k: pl.get(k, []) for k in ("nightlife", "sights")}},
+                             "places": {"diet": pl.get("diet", {}), "sights": pl.get("sights", []),
+                                        "nightlife": pl.get("nightlife", []) if night_on else []},
                              "places_sources": pl.get("sources", []),
                              "stays": cands, "stay_ok": bool(cands),
                              "stay_error": None if cands else (r.error if r else "not fetched"),
@@ -436,18 +563,18 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                              "stay_url": r.source_url if r else "", "stay_shot": r.screenshot_path if r else None,
                              "rooms": (rr.data["ranked"][:2] if rr and rr.ok else [])})
         days = o["nights"] + 1
-        party_n = sum(math.ceil(s["nights"] * cfg["party_share"]) for s in o["stops"]) if "party" in prefs else 0
-        spend_rows, spend_pp, spend_note = daily_spend(cfg, days, party_n, "party" in prefs)
+        party_n = sum(math.ceil(s["nights"] * cfg["party_share"]) for s in o["stops"]) if night_on else 0
+        spend_rows, spend_pp, spend_note = daily_spend(cfg, days, party_n, night_on)
         o2 = {**o, "legs": legs, "stops": stop_out}
         o2.pop("hops", None)
-        o2["totals"] = {"flights_pp": fl_total, "flight_legs_missing": fl_missing, "stays_total": st_total,
+        o2["totals"] = {"flights_pp": fl_total, "flight_legs_missing": fl_missing, "rail_fares_missing": rail_missing, "stays_total": st_total,
                         "stays_pp": round(st_total / people), "stays_missing": st_missing,
                         "ground_lo_pp": g_lo, "ground_hi_pp": g_hi, "days": days, "party_nights": party_n,
                         "spend_rows": spend_rows, "spend_pp": spend_pp, "spend_note": spend_note,
                         "core_pp": fl_total + round(st_total / people),
                         "all_in_lo_pp": fl_total + round(st_total / people) + g_lo + (spend_pp or 0),
                         "all_in_hi_pp": fl_total + round(st_total / people) + g_hi + (spend_pp or 0)}
-        o2["days_plan"] = build_days(o2, {s["name"]: s["places"] for s in stop_out}, prefs)
+        o2["days_plan"] = build_days(o2, {s["name"]: s["places"] for s in stop_out}, prefs, pace, night_on)
         out_opts.append(o2)
 
     ev = []
@@ -467,7 +594,17 @@ def run_plan(cfg: dict, evid: Path) -> dict:
     win_s, win_e = _d(starts[0]), _d(options[0]["end"])
     ev_rows = events.lunar_rows(win_s, win_e, [(places[s["name"]].get("lead") or "") for s in stops])
     for cc, res in hol.items():
-        ev_rows += events.holiday_rows(res, AP.countries().get(cc, cc), "home" if cc == home_ap["cc"] else "destination")
+        # a domestic trip's one country is both: leave planning at home and closures where you travel
+        role = ("both" if cc in ccs else "home") if cc == home_ap["cc"] else "destination"
+        ev_rows += events.holiday_rows(res, AP.countries().get(cc, cc), role)
+    if cfg.get("destination"):  # region-level festival mentions, split into one event each
+        fw = events.wikipedia_festivals(str(cfg["destination"]).split(",")[0].strip(), win_s, win_e)
+        ev_rows += [dict(r, date=None) for r in (fw.data if fw.ok else [])]
+    for st in stops:  # each stop's own Events / Festivals section (guide text, dated by the month it names)
+        w = wikivoyage(st["name"])
+        if w.ok:
+            ev_rows += [dict(r, date=None) for r in events.section_mentions(
+                w.data.get("text", ""), win_s, win_e, "wikivoyage " + st["name"], w.source_url)]
     ev_rows.sort(key=lambda r: r.get("date") or "9999")
     for cc, r in hol.items():
         ev.append({"label": f"public holidays {cc}", "ok": r.ok, "url": r.source_url, "file": None,

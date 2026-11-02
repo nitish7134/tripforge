@@ -5,6 +5,7 @@ OSM tags are sparse on small islands, so callers keep the curated highlight list
 """
 from __future__ import annotations
 
+import html
 import re
 import threading
 import time
@@ -126,6 +127,8 @@ def wikivoyage(page: str) -> Result:
         try:
             js = httpx.get(WIKIVOYAGE, params={"action": "parse", "page": page, "prop": "wikitext", "format": "json",
                                                "formatversion": 2, "redirects": 1}, headers=HEADERS, timeout=25).json()
+            if "parse" not in js:
+                return fail(f"no Wikivoyage article titled {page!r}", url)
             text = js["parse"]["wikitext"]
             url = f"https://en.wikivoyage.org/wiki/{js['parse']['title'].replace(' ', '_')}"
         except Exception as e:  # noqa: BLE001
@@ -148,20 +151,40 @@ def wikivoyage(page: str) -> Result:
         return Result(ok=True, data={"items": items, "lead": lead[:600], "go_next": _go_next(text),
                                      "destinations": destinations(text), "text": text[:120000],
                                      "title": js["parse"]["title"]}, source_url=url)
-    return cache.cached("places:wikivoyage", {"page": page, "v": 7}, go)
+    return cache.cached("places:wikivoyage", {"page": page, "v": 8}, go)
 
 
 _WLINK = re.compile(r"\[\[([^|\]#]+)(?:\|([^\]]+))?\]\]")
 
 
+def flatten_templates(text: str) -> str:
+    """Put every multi-line {{marker|...}} / {{listing|...}} template on one line, drop [[File:..]] embeds and
+    unescape HTML entities, so line-based parsers see one list entry per line."""
+    text = html.unescape(text)
+    text = re.sub(r"\[\[(?:File|Image|Category):[^\[\]]*(?:\[\[[^\]]*\]\][^\[\]]*)*\]\]", "", text)
+    out, depth = [], 0
+    for line in text.splitlines():
+        opened = line.count("{{") - line.count("}}")
+        if depth > 0:
+            out[-1] += " " + line.strip()
+        else:
+            out.append(line)
+        depth = max(depth + opened, 0)
+    return "\n".join(out)
+
+
 def destinations(text: str) -> list[dict]:
     """Region/country articles list their 'Cities' and 'Other destinations' as [[links]]."""
+    text = flatten_templates(text)
     out, seen = [], set()
     for sec in re.finditer(r"==\s*(Cities|Other destinations|Regions)\s*==(.*?)(?=\n==[^=]|\Z)", text, re.S):
         kind = {"Cities": "city", "Other destinations": "destination", "Regions": "region"}[sec.group(1)]
         for line in sec.group(2).splitlines():
-            m = _WLINK.search(line)
-            if not m or not line.lstrip().startswith(("*", "{{")):
+            if not line.lstrip().startswith(("*", "{{")):
+                continue
+            mk = re.search(r"\{\{\s*marker\s*\|[^}]*?\bname\s*=\s*\[\[([^|\]#]+)(?:\|([^\]]+))?\]\]", line, re.I)
+            m = mk or _WLINK.search(line)
+            if not m:
                 continue
             page = m.group(1).strip()
             if page.lower() in seen or ":" in page:
@@ -172,6 +195,24 @@ def destinations(text: str) -> list[dict]:
             out.append({"page": page, "name": (m.group(2) or page).strip(), "kind": kind,
                         "blurb": rest.strip(" -\u2013\u2014:*|}").strip()[:200]})
     return out
+
+
+def section_text(text: str, *titles: str) -> str:
+    """Body of the first section (any heading depth) whose title is one of `titles`, up to the next heading of
+    the same or a higher level. Sub-headings stay inside the body."""
+    want = {t.lower() for t in titles}
+    lines, out, lvl = text.splitlines(), [], None
+    for ln in lines:
+        m = re.match(r"^(={2,5})\s*(.*?)\s*\1\s*$", ln)
+        if m:
+            if lvl is not None and len(m.group(1)) <= lvl:
+                break
+            if lvl is None and m.group(2).lower() in want:
+                lvl = len(m.group(1))
+                continue
+        if lvl is not None:
+            out.append(ln)
+    return "\n".join(out)
 
 
 def _section(text: str, title: str) -> str:

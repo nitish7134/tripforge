@@ -13,6 +13,7 @@ import httpx
 
 from . import cache
 from .fetchers.common import HEADERS, Result, fail
+from .fetchers.places import flatten_templates, section_text
 
 SYNODIC = 29.530588853
 NEW_MOON_REF = dt.datetime(2000, 1, 6, 18, 14)
@@ -65,6 +66,52 @@ def mentions(text: str, start: dt.date, end: dt.date, src: str, url: str, limit:
     return out
 
 
+_UNIT = re.compile(r"([^()]+?)\(([^()]*?(?:%s)[^()]*?)\)" % "|".join(m[:3] for m in MONTHS))
+
+
+def split_snippet(snip: str, src: str, url: str) -> list[dict]:
+    """Break a glued 'Name, Place (Month) Name, Place (Month-Month) ...' text into one event per unit.
+    Only the structure `Name[, Place] (month...)` is read; nothing about any event is known in advance."""
+    out = []
+    for name, when in _UNIT.findall(re.sub(r"\s+", " ", snip)):
+        name = name.strip(" ,;:.-\u2013\u2014*")
+        name = re.sub(r"^.*?(?:\.\.\.|\bincluding\b|\bsuch as\b|:)\s*", "", name).strip(" ,;")
+        if not 3 <= len(name) <= 90:
+            continue
+        head, _, place = name.rpartition(",")
+        label = f"{head.strip()} in {place.strip()}" if head and place.strip() else name
+        out.append({"text": f"{label} ({when.strip()})", "src": src, "url": url,
+                    "tag": "text mention, approximate month", "when": when.strip()})
+    return out
+
+
+def in_window(when: str, start: dt.date, end: dt.date) -> bool:
+    return any(m[:3].lower() in when.lower() for m in _months_in(start, end))
+
+
+def section_mentions(text: str, start: dt.date, end: dt.date, src: str, url: str, limit: int = 6) -> list[dict]:
+    """Bullets of a guide article's Events / Festivals / Holidays section that name a month in the window."""
+    body = section_text(flatten_templates(text), "Festivals and events", "Events", "Festivals", "Holidays",
+                        "Festivals and holidays")
+    ms = _months_in(start, end)
+    out, seen = [], set()
+    for ln in body.splitlines():
+        if not ln.lstrip().startswith(("*", "#", ";", ":")):
+            continue
+        plain = re.sub(r"\{\{[^{}]*\}\}|<[^>]+>|'{2,3}", "", re.sub(r"\[\[(?:[^|\]]*\|)?([^\]]*)\]\]", r"\1", ln))
+        plain = plain.strip(" *#:;")
+        if len(plain) < 12 or not any(m in plain for m in ms):
+            continue
+        k = plain[:50].lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append({"text": plain[:240], "src": src, "url": url, "tag": "guide section, community text"})
+        if len(out) >= limit:
+            break
+    return out
+
+
 def wikipedia_festivals(country: str, start: dt.date, end: dt.date) -> Result:
     def go() -> Result:
         url = "https://en.wikipedia.org/w/api.php"
@@ -79,10 +126,12 @@ def wikipedia_festivals(country: str, start: dt.date, end: dt.date) -> Result:
             snip = re.sub(r"<[^>]+>", "", h.get("snippet", "")).replace("&#039;", "'").replace("&quot;", '"')
             if h["title"] in MONTHS or not any(m in snip or m in h["title"] for m in _months_in(start, end)):
                 continue
-            rows.append({"text": f"{h['title']}: {snip[:180]}", "src": "wikipedia", "tag": "search hit",
-                         "url": "https://en.wikipedia.org/wiki/" + h["title"].replace(" ", "_")})
+            page = "https://en.wikipedia.org/wiki/" + h["title"].replace(" ", "_")
+            units = [u for u in split_snippet(snip, "wikipedia", page) if in_window(u["when"], start, end)]
+            rows += units or [{"text": f"{h['title']}: {snip[:180]}", "src": "wikipedia", "tag": "search hit",
+                               "url": page}]
         return Result(ok=True, data=rows, source_url=url)
-    return cache.cached("places:wpfest", {"c": country, "s": str(start), "e": str(end), "v": 2}, go)
+    return cache.cached("places:wpfest", {"c": country, "s": str(start), "e": str(end), "v": 3}, go)
 
 
 NAGER = "https://date.nager.at/api/v3/PublicHolidays/{year}/{cc}"
@@ -110,7 +159,8 @@ def holiday_rows(res: Result, label: str, role: str) -> list[dict]:
     """role: 'home' (leave-day planning) or 'destination' (closures, crowds)."""
     if not res.ok:
         return []
-    why = "plan leave days around it" if role == "home" else "expect closures and crowds"
+    why = {"home": "plan leave days around it",
+           "both": "plan leave days around it and expect closures and crowds"}.get(role, "expect closures and crowds")
     return [{"text": f"Public holiday in {label}: {h['name']} on {dt.date.fromisoformat(h['date']).strftime('%a %d %b')} ({why})",
              "src": "nager.date", "tag": "live", "date": h["date"], "url": res.source_url} for h in res.data]
 
