@@ -24,7 +24,7 @@ from .fetchers.climate import fetch_normals
 from .fetchers.misc import fetch_fx, fetch_weather
 from .fetchers.visa import visa_requirement
 from .fetchers.photos import fetch_photos
-from .fetchers.places import stop_places
+from .fetchers.places import diets_in, stop_places
 from .stops import OWN_AIRPORT_KM, StopError, airport_point, parse_spec
 
 console = Console(stderr=True)
@@ -215,7 +215,7 @@ def build_days(opt: dict, places: dict, prefs: list[str]) -> list[dict]:
         fl = next((lg for lg in arr if lg["kind"] == "flight" and lg["rows"]), None)
         p = places.get(s["name"], {})
         items = day_items(s, p, prefs)
-        veg = [x["name"] for x in p.get("veg", [])]
+        diet = {d: [x["name"] for x in v] for d, v in (p.get("diet") or {}).items()}
         night = [x["name"] for x in p.get("nightlife", [])]
         d0 = _d(s["checkin"])
         for k in range(s["nights"]):
@@ -226,8 +226,9 @@ def build_days(opt: dict, places: dict, prefs: list[str]) -> list[dict]:
             elif k == 0 and arr and arr[-1]["kind"] == "ground":
                 text = f"Transfer by {arr[-1]['ground']['mode']} (about {arr[-1]['ground']['hours'][0]}h). " + text
             extra = []
-            if "veg" in prefs and veg:
-                extra.append(f"veg: {veg[k % len(veg)]}")
+            for d, names in diet.items():
+                if names:
+                    extra.append(f"{d}: {names[k % len(names)]}")
             if "party" in prefs and night and k % 2 == 0:
                 extra.append(f"night out: {night[(k // 2) % len(night)]}")
             out.append({"date": (d0 + dt.timedelta(days=k)).strftime("%a %d %b"), "place": s["name"], "text": text,
@@ -316,7 +317,7 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                   f"{len(need_s)} stay searches, places for {len(stops)} stops")
 
     with ThreadPoolExecutor(max_workers=12) as ex:
-        pl_f = {s["name"]: ex.submit(stop_places, s) for s in stops}
+        pl_f = {s["name"]: ex.submit(stop_places, s, diets_in(prefs)) for s in stops}
         cur_f = {cc: ex.submit(money.country_currency, cc) for cc in ccs}
         foreign = {cc: n for cc, n in cnames.items() if cc != home_ap["cc"]}  # domestic: nothing to advise on
         adv_f = ex.submit(fetch_advisories, cfg["passport"], foreign, evid) if foreign else None
@@ -426,7 +427,7 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                                                       "airport", "airport_km")},
                              "areas": s.get("areas") or [], "highlights": s.get("highlights") or [],
                              "guide_found": s.get("guide_found"), "guide_url": s.get("guide_url"),
-                             "places": {k: pl.get(k, []) for k in ("veg", "nightlife", "sights")},
+                             "places": {"diet": pl.get("diet", {}), **{k: pl.get(k, []) for k in ("nightlife", "sights")}},
                              "places_sources": pl.get("sources", []),
                              "stays": cands, "stay_ok": bool(cands),
                              "stay_error": None if cands else (r.error if r else "not fetched"),

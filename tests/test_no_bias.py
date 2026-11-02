@@ -103,3 +103,13 @@ def test_moon_events_only_when_guide_mentions_them():
     a, b = dt.date(2026, 12, 15), dt.date(2027, 1, 5)
     assert events.lunar_rows(a, b, ["a quiet town with beaches"]) == []
     assert events.lunar_rows(a, b, ["famous monthly full moon party"])
+
+
+def test_dietary_prefs_are_generic_tags():
+    from tripforge.fetchers import places
+    assert places.diets_in(["party", "halal", "gluten-free", "veg"]) == ("gluten-free", "halal", "veg")
+    q = places._q(1.0, 2.0, 500, ("halal",))
+    assert "diet:halal" in q and "diet:vegetarian" not in q
+    out = places.classify([{"type": "node", "id": 1, "lat": 1, "lon": 2,
+                            "tags": {"amenity": "restaurant", "name": "Alpha", "diet:halal": "only"}}], ("halal",))
+    assert out["diet"]["halal"][0]["kind"] == "only halal"
