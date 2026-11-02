@@ -40,6 +40,10 @@ end_airport: HKT             # optional: fly home from a different airport
 
 CLI flags (`--from`, `--stops`, `--start`, `--end-airport`, `--prefs`, `--meal-rate`, `--party-rate`, ...) override the brief. `tripforge plan --trip <slug> ...` creates the folder and writes the merged `brief.yaml`, so a re-run needs no flags.
 
+## Fetch strategy, not data
+
+tripforge ships no travel data. `docs/FETCH_STRATEGY.md` lists every piece of information a plan needs, which source answers it for the trip in hand, the fallback, and how it is tagged. Heuristics may estimate time, never money.
+
 ## How it resolves any destination
 
 | Piece | Source (all keyless) |
