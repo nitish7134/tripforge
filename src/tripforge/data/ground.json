@@ -1,0 +1,14 @@
+{
+ "_note": "Example entries only (Thailand). Typical per-person ranges for shared van/bus/ferry, INR, checked against operator listings in 2026. Pairs not listed fall back to the distance heuristic in ground.py. Keys are two endpoint names or IATA codes, lower-case, sorted, joined by '|'.",
+ "pairs": {
+  "krabi|phuket": {"mode": "shared van", "hours": [2.5, 3.5], "inr": [850, 1500]},
+  "hkt|krabi": {"mode": "shared van to Phuket airport", "hours": [2.5, 3.5], "inr": [900, 1800]},
+  "ao nang|hkt": {"mode": "shared van to Phuket airport", "hours": [2.5, 3.5], "inr": [900, 1800]},
+  "koh phangan|krabi": {"mode": "bus + ferry (via Donsak)", "hours": [6.5, 8.5], "inr": [1800, 3000]},
+  "koh phangan|urt": {"mode": "bus + ferry from Surat Thani airport", "hours": [4.0, 5.5], "inr": [1000, 1800]},
+  "koh phangan|surat thani": {"mode": "bus + ferry (via Donsak)", "hours": [3.5, 5.0], "inr": [900, 1600]},
+  "koh phangan|koh samui": {"mode": "ferry", "hours": [0.5, 1.0], "inr": [600, 1200]},
+  "koh phangan|usm": {"mode": "taxi + ferry from Samui airport", "hours": [1.0, 1.8], "inr": [900, 1700]},
+  "bangkok|pattaya": {"mode": "bus or van", "hours": [2.0, 3.0], "inr": [350, 900]}
+ }
+}

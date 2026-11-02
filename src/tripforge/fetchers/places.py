@@ -129,12 +129,37 @@ def wikivoyage(page: str) -> Result:
             content = _field(body, "content")
             first = re.split(r"(?<=[.!?])\s", re.sub(r"'''?|<[^>]+>", "", content), maxsplit=1)[0][:160]
             items.append({"name": name, "kind": (kind if kind.lower() != "listing" else _field(body, "type")).lower(),
-                          "blurb": first, "veg": bool(re.search(r"vegetarian|vegan|\bveg\b", content, re.I)),
+                          "blurb": first, "price": _field(body, "price")[:80], "veg": bool(re.search(r"vegetarian|vegan|\bveg\b", content, re.I)),
                           "adult": bool(re.search(r"go-?go|ladyboy|girly|hostess|\bstrip", content, re.I))})
         lead = re.sub(r"\{\{.*?\}\}|\[\[(?:File|Image):.*?\]\]|'''?", "", text.split("\n==", 1)[0], flags=re.S)
         lead = re.sub(r"\[\[(?:[^|\]]*\|)?([^\]]*)\]\]", r"\1", lead).strip()
-        return Result(ok=True, data={"items": items, "lead": lead[:600], "go_next": _go_next(text)}, source_url=url)
-    return cache.cached("places:wikivoyage", {"page": page, "v": 4}, go)
+        return Result(ok=True, data={"items": items, "lead": lead[:600], "go_next": _go_next(text),
+                                     "destinations": destinations(text), "text": text[:120000],
+                                     "title": js["parse"]["title"]}, source_url=url)
+    return cache.cached("places:wikivoyage", {"page": page, "v": 5}, go)
+
+
+_WLINK = re.compile(r"\[\[([^|\]#]+)(?:\|([^\]]+))?\]\]")
+
+
+def destinations(text: str) -> list[dict]:
+    """Region/country articles list their 'Cities' and 'Other destinations' as [[links]]."""
+    out, seen = [], set()
+    for sec in re.finditer(r"==\s*(Cities|Other destinations|Regions)\s*==(.*?)(?=\n==[^=]|\Z)", text, re.S):
+        kind = {"Cities": "city", "Other destinations": "destination", "Regions": "region"}[sec.group(1)]
+        for line in sec.group(2).splitlines():
+            m = _WLINK.search(line)
+            if not m or not line.lstrip().startswith(("*", "{{")):
+                continue
+            page = m.group(1).strip()
+            if page.lower() in seen or ":" in page:
+                continue
+            seen.add(page.lower())
+            rest = line[m.end():]
+            rest = _WLINK.sub(lambda x: x.group(2) or x.group(1), re.sub(r"\{\{[^{}]*\}\}|'{2,3}", "", rest))
+            out.append({"page": page, "name": (m.group(2) or page).strip(), "kind": kind,
+                        "blurb": rest.strip(" -\u2013\u2014:*|}").strip()[:200]})
+    return out
 
 
 def _go_next(text: str) -> list[str]:
@@ -163,7 +188,7 @@ def stop_places(stop: dict, n: int = 8) -> dict:
     veg = (ov.data["veg"] if ov.ok else []) or wv_veg
     night = (ov.data["nightlife"] if ov.ok else []) or wv_drink
     return {"veg": veg[:n], "nightlife": night[:n],
-            "sights": sights[:n], "ok": ov.ok or wv.ok,
+            "sights": sights[:n], "ok": ov.ok or wv.ok, "lead": wv.data["lead"] if wv.ok else "",
             "sources": [{"label": "OpenStreetMap Overpass", "ok": ov.ok, "url": ov.source_url, "error": ov.error,
                          "fetched_at": ov.fetched_at},
                         {"label": "Wikivoyage", "ok": wv.ok, "url": wv.source_url, "error": wv.error,
