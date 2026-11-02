@@ -84,7 +84,7 @@ a{color:var(--pur)}
 <h3>Flights (per person, one-way nonstop, Google Flights)</h3>
 {% for lg in o.legs %}
  {% if lg.kind == "ground" %}
-  <div class="na">{{ lg.from_name }} to {{ lg.to_name }}: same airport, ground transfer<small>Check local vans or trains.</small></div>
+  <div class="na">{{ lg.from_name }} to {{ lg.to_name }} on {{ lg.date|day }}: by road or ferry, no flight searched<small>Usually a van or ferry of a few hours. Price and timing not fetched, check a local operator.</small></div>
  {% elif lg.rows %}
   {% for r in lg.rows %}
   <div class="row{% if not loop.first %} alt{% endif %}">

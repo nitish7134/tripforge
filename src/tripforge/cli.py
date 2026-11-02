@@ -52,6 +52,8 @@ def plan(
             if lg["rows"]:
                 r = lg["rows"][0]
                 console.print(f"  {lg['date']} {r['flight']:8} {r['from']} {r['dep']} -> {r['to']} {r['arr']}  {r['price']}")
+            elif lg["kind"] == "ground":
+                console.print(f"  {lg['date']} {lg['orig']}->{lg['dest']} by road/ferry (not searched)")
             else:
                 console.print(f"  {lg['date']} {lg['orig']}->{lg['dest']} unavailable")
 
