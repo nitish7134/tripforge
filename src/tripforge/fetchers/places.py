@@ -84,12 +84,12 @@ def overpass(lat: float, lon: float, radius: int = 5000) -> Result:
     def go() -> Result:
         q, err, t0 = _q(lat, lon, radius), "overpass unavailable", time.time()
         # The public instance is often slow (30-60 s) or briefly 429/502; retry within a 100 s budget.
-        for ep in (OVERPASS[0], OVERPASS[0], OVERPASS[1]):
+        for ep in (OVERPASS[0],):  # degraded public instance: one bounded try, Wikivoyage fills the gap
             if time.time() - t0 > 100:
                 break
             _polite()
             try:
-                r = httpx.post(ep, data={"data": q}, headers=HEADERS, timeout=httpx.Timeout(70, connect=10))
+                r = httpx.post(ep, data={"data": q}, headers=HEADERS, timeout=httpx.Timeout(40, connect=8))
                 if r.status_code == 200 and r.text.lstrip().startswith("{"):
                     return Result(ok=True, data=classify(r.json().get("elements", [])), source_url=ep)
                 err = f"overpass HTTP {r.status_code}"

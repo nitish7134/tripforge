@@ -116,6 +116,7 @@ def fetch_currency(cc: str) -> Result:
         try:
             with client(15) as c:
                 j = c.get(url).json()
+            j = j[0] if isinstance(j, list) else j
             return Result(ok=True, data=next(iter(j["currencies"])), source_url=url)
         except Exception as e:  # noqa: BLE001
             return fail(f"currency lookup failed: {e}", url)

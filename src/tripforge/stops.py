@@ -12,7 +12,7 @@ from .fetchers.geo import geocode
 from .fetchers.misc import load
 
 # A stop whose nearest airport is further than this needs a ground transfer from the airport.
-OWN_AIRPORT_KM = 25
+OWN_AIRPORT_KM = 40  # big-city airports sit 20-40 km out
 
 
 class StopError(ValueError):

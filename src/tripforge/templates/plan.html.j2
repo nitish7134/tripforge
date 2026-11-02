@@ -27,6 +27,7 @@ h3{color:var(--c);font-size:16px;letter-spacing:1px;margin:20px 0 10px;text-tran
 .row .fn{font-size:24px;font-weight:800}
 .row .rt{font-weight:700;font-size:18px}.row .meta{color:var(--grey);font-size:14px}
 .row .pr{font-size:24px;font-weight:800;color:var(--c);text-align:right}
+.row.gnd{background:#eef6f5;border-left:6px solid var(--teal)}.row.gnd .fn{font-size:17px}
 .row.alt{opacity:.8;background:#faf8f3}.row.alt .fn{font-size:18px}.row.alt .pr{font-size:18px}
 .row.stay{grid-template-columns:1fr auto}
 .row a{color:var(--c);word-break:break-all;font-size:13px}
@@ -52,14 +53,14 @@ figcaption{font-size:11px;color:var(--grey)}
 .ev{width:100%;border-collapse:collapse}.ok{color:var(--teal);font-weight:800}.bad{color:var(--red);font-weight:800}
 a{color:var(--pur)}
 @media (max-width:640px){h1{font-size:40px}.row{grid-template-columns:1fr auto}.row .fn{grid-column:1/-1}.decision .big{font-size:23px}}
-@media print{@page{size:A4;margin:10mm}body{font-size:12px;background:#fff}.hero{padding:20px 0}h1{font-size:40px}.opt,.card{break-inside:avoid}a{color:inherit;text-decoration:none}}
+@media print{@page{size:A4;margin:10mm}body{font-size:12px;background:#fff}.hero{padding:20px 0}h1{font-size:40px}.row,.card,.na,.totals,.decision,figure,tr{break-inside:avoid}.opt{break-inside:auto}h3{break-after:avoid}a{color:inherit;text-decoration:none}}
 </style></head><body>
 
 <div class="hero{% if hero %} photo{% endif %}"{% if hero %} style="background-image:url(data:image/jpeg;base64,{{ hero.b64 }})"{% endif %}>
 {% if hero %}<div class="shade"></div>{% endif %}
 <div class="wrap">
 <h1>{{ m.title }}</h1>
-<div class="sub">{{ m.people }} travellers &bull; from {{ m.home_name }} ({{ m.home }}) &bull; nonstop flights only &bull; about {{ m.budget_night|money }} a night for stays</div>
+<div class="sub">{{ m.people }} travellers &bull; from {{ m.home_name }} ({{ m.home }}){% if m.end_airport %} &bull; home from {{ m.end_airport }}{% endif %} &bull; nonstop flights only &bull; about {{ m.budget_night|money }} a night for stays</div>
 <div class="sub2">{{ m.prefs|join(", ") if m.prefs else "no preferences set" }} &bull; live searches on {{ m.generated }} &bull; prices in {{ m.currency }}, per person unless stated</div>
 </div></div>
 
@@ -81,16 +82,20 @@ a{color:var(--pur)}
 <div class="hd"><div class="tag">OPTION {{ loop.index }}{% if dec.best and o.start == dec.best.start %} &bull; LOWEST CORE COST{% endif %}</div>
 <div class="t">{{ o.stops|map(attribute="name")|join(" &rarr; ")|safe }} &nbsp; {{ o.start|day }} to {{ o.end|day }} ({{ o.nights }} nights)</div></div>
 <div class="body">
-<h3>Flights (per person, one-way nonstop, Google Flights)</h3>
+<h3>Getting around (flights per person, one-way nonstop, Google Flights; ground rows indicative)</h3>
 {% for lg in o.legs %}
  {% if lg.kind == "ground" %}
-  <div class="na">{{ lg.from_name }} to {{ lg.to_name }} on {{ lg.date|day }}: by road or ferry, no flight searched<small>Usually a van or ferry of a few hours. Price and timing not fetched, check a local operator.</small></div>
+  {% set g = lg.ground %}
+  <div class="row gnd"><div class="fn">{{ g.mode }}</div>
+   <div><div class="rt">{{ lg.from_name }} &rarr; {{ lg.to_name }}</div>
+    <div class="meta">{{ lg.date|day }} &bull; about {{ g.hours[0] }} to {{ g.hours[1] }} h &bull; ~{{ g.km }} km &bull; INDICATIVE ({{ "typical range table" if g.source == "table" else "distance estimate" }}), book with a local operator</div></div>
+   <div class="pr">{{ g.inr[0]|money }}&ndash;{{ g.inr[1]|money }}</div></div>
  {% elif lg.rows %}
   {% for r in lg.rows %}
   <div class="row{% if not loop.first %} alt{% endif %}">
    <div class="fn">{{ r.flight }}</div>
    <div><div class="rt">{{ r.from }} {{ r.dep }} &rarr; {{ r.to }} {{ r.arr }}{% if r.next_day %} (+1){% endif %}</div>
-    <div class="meta">{{ r.airline }} &bull; {{ lg.date|day }} &bull; {{ r.duration_min|dur }} nonstop{% if loop.first %} &bull; cheapest{% endif %}</div></div>
+    <div class="meta">{{ r.airline }} &bull; {{ lg.date|day }} &bull; {{ r.duration_min|dur }} nonstop{% if loop.first %} &bull; cheapest &bull; live via {{ lg.backend }}, fetched {{ lg.fetched }}{% for a in lg.alts %}{% if a.price %} &bull; via {{ a.iata }}: {{ a.price|money }}{% endif %}{% endfor %}{% endif %}</div></div>
    <div class="pr">{{ r.price|money }}</div>
   </div>
   {% endfor %}
@@ -99,13 +104,13 @@ a{color:var(--pur)}
  {% endif %}
 {% endfor %}
 
-<h3>Stays (Airbnb, entire place, {{ m.people }} guests, total for the stay)</h3>
+<h3>Stays (Airbnb, entire place, {{ m.people }} guests, total for the stay, 10+ reviews and 4.6+)</h3>
 {% for s in o.stops %}
  {% if s.stays %}
   {% for st in s.stays %}
   <div class="row stay{% if not loop.first %} alt{% endif %}">
    <div><div class="rt">{{ s.name }} &bull; {{ s.checkin|short }} to {{ s.checkout|short }} ({{ s.nights }}N){% if loop.first %} &bull; pick{% endif %}</div>
-    <div class="meta">{{ st.name }} &bull; {{ st.kind }} &bull; {{ st.rating }} rating, {{ st.reviews }} reviews{% if st.badge %} &bull; {{ st.badge }}{% endif %}{% if st.free_cancel %} &bull; free cancellation{% endif %}</div>
+    <div class="meta">{{ st.name }} &bull; {{ st.kind }} &bull; {{ st.rating }} rating, {{ st.reviews }} reviews{% if loop.first %} &bull; live via {{ s.stay_backend }}, fetched {{ s.stay_fetched }}{% endif %}{% if st.badge %} &bull; {{ st.badge }}{% endif %}{% if st.free_cancel %} &bull; free cancellation{% endif %}</div>
     <a href="{{ st.url }}">{{ st.url }}</a></div>
    <div class="pr">{{ st.total|money }}<div class="meta">{{ st.per_night|money }} a night</div></div>
   </div>
@@ -119,11 +124,11 @@ a{color:var(--pur)}
 {% endfor %}
 
 <h3>Day plan</h3>
-<ul class="plan">{% for d in o.days_plan %}<li><b>{{ d.date }}, {{ d.place }}:</b> {{ d.text }}</li>{% endfor %}</ul>
+<ul class="plan">{% for d in o.days_plan %}<li><b>{{ d.date }}, {{ d.place }}:</b> {{ d.text }}{% if d.extra %} <span class="est">({{ d.extra }})</span>{% endif %}</li>{% endfor %}</ul>
 
 <div class="totals">
-<div class="a">Flights {{ o.totals.flights_pp|money }} + stays share {{ o.totals.stays_pp|money }} = {{ o.totals.core_pp|money }} per person{% if o.totals.flight_legs_missing or o.totals.stays_missing %} (partial: {{ o.totals.flight_legs_missing }} flight leg(s) and {{ o.totals.stays_missing }} stay(s) unavailable){% endif %}</div>
-{% if o.totals.spend_lo_pp is not none %}<div class="b">Add about {{ o.totals.spend_lo_pp|money }} to {{ o.totals.spend_hi_pp|money }} per person for food, drinks and local transport over {{ o.totals.days }} days (estimate)</div>{% endif %}
+<div class="a">Flights {{ o.totals.flights_pp|money }} + stays share {{ o.totals.stays_pp|money }} = {{ o.totals.core_pp|money }} per person (live){% if o.totals.flight_legs_missing or o.totals.stays_missing %} (partial: {{ o.totals.flight_legs_missing }} flight leg(s) and {{ o.totals.stays_missing }} stay(s) unavailable){% endif %}</div>
+<div class="b">Ground legs {{ o.totals.ground_lo_pp|money }}&ndash;{{ o.totals.ground_hi_pp|money }} (indicative) + daily spend {{ o.totals.spend_pp|money }} (your rates) &rarr; all-in about {{ o.totals.all_in_lo_pp|money }} to {{ o.totals.all_in_hi_pp|money }} per person</div>
 </div>
 </div></div>
 {% endfor %}
@@ -131,15 +136,20 @@ a{color:var(--pur)}
 {% set first = plan.options[0] %}
 <h2>Where to stay</h2>
 <div class="grid">
-{% for s in first.stops %}{% if s.areas %}<div class="card"><h3 style="--c:#F77F00">{{ s.name }}</h3>
-{% for a in s.areas %}<p><b>{{ a[0] }}.</b> {{ a[1] }}</p>{% endfor %}</div>{% endif %}{% endfor %}
+{% for s in first.stops %}<div class="card"><h3 style="--c:#F77F00">{{ s.name }}{% if s.airport_km and s.airport_km > 25 %} <span class="est">(nearest airport {{ s.iata }}, {{ s.airport_km }} km)</span>{% endif %}</h3>
+{% for a in s.areas %}<p><b>{{ a[0] }}.</b> {{ a[1] }}</p>{% endfor %}
+{% if s.places.sights %}<p><b>See / do:</b> {% for x in s.places.sights %}{{ x.name }}{% if x.price %} ({{ x.price }}){% endif %}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
+{% if s.places.veg %}<p><b>Veg food:</b> {% for x in s.places.veg %}{{ x.name }}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
+{% if s.places.nightlife %}<p><b>Nightlife:</b> {% for x in s.places.nightlife %}{{ x.name }}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
+<p class="est">Places from {% for src in s.places_sources %}{{ src.label }} ({{ "ok" if src.ok else "unavailable" }}){{ ", " if not loop.last }}{% endfor %}.</p></div>{% endfor %}
 </div>
 
-<h2>Daily spend per person <span class="est">(estimates, not fetched prices)</span></h2>
+<h2>Daily spend per person <span class="est">(from your brief's rates, not fetched)</span></h2>
 <div class="card">
-{% for r in first.totals.spend_rows %}<div class="kv"><span>{{ r.label }}</span><b>{{ r.lo|money }} to {{ r.hi|money }} / day</b></div>{% endfor %}
-{% if not first.totals.spend_rows %}<p>unavailable</p>{% endif %}
-<p class="est">Local-currency ranges converted at live FX: {% for k,v in plan.fx.items() %}1 {{ v.src }} = {{ v.rate }} {{ v.dst }} ({{ v.date }}){{ "; " if not loop.last }}{% endfor %}.</p>
+{% for r in first.totals.spend_rows %}<div class="kv"><span>{{ r.label }}</span><b>{{ r.amount|money }}</b></div>{% endfor %}
+<div class="kv"><span>Total for the trip</span><b>{{ first.totals.spend_pp|money }}</b></div>
+{% if plan.fx %}<p class="est">FX: {% for k,v in plan.fx.items() %}1 {{ v.src }} = {{ v.rate }} {{ v.dst }} ({{ v.date }}){{ "; " if not loop.last }}{% endfor %}.</p>{% endif %}
+{% if plan.events %}<p><b>In your dates:</b> {% for e in plan.events %}{{ e.text }}{{ "; " if not loop.last }}{% endfor %}</p>{% endif %}
 </div>
 
 <h2>Before you go</h2>
@@ -166,7 +176,7 @@ a{color:var(--pur)}
 <div class="card"><table class="ev"><tr><th>Fetch</th><th>Status</th><th>When</th><th>Source</th><th>File</th></tr>
 {% for e in plan.evidence %}<tr><td>{{ e.label }}</td><td class="{{ 'ok' if e.ok else 'bad' }}">{{ "ok" if e.ok else "unavailable" }}</td><td>{{ e.fetched_at }}</td>
 <td>{% if e.url %}<a href="{{ e.url }}">link</a>{% endif %}{% if e.error %} {{ e.error }}{% endif %}</td>
-<td>{% if e.file %}<a href="evidence/{{ e.file }}">{{ e.file }}</a>{% endif %}</td></tr>{% endfor %}
+<td>{% if e.file %}<a href="../evidence/{{ e.file }}">{{ e.file }}</a>{% endif %}{% if e.cached %} (cache){% endif %}</td></tr>{% endfor %}
 </table>
 <p class="est">Flight and stay prices are live page reads at the time shown and change quickly. Open the source link before booking.</p></div>
 </div></body></html>
