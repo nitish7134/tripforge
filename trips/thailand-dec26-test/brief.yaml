@@ -1,9 +1,0 @@
-from: BLR
-stops: Bangkok:4,Koh Phangan:4,Krabi:2
-start: '2026-12-24'
-end_airport: HKT
-people: 2
-budget_night: 5000
-prefs:
-- veg
-- party

@@ -1,8 +1,15 @@
-out/
-cache/
+!trips/README.md
+!trips/example-thailand/
+# personal trips live outside the repo
+*.pyc
 .venv/
 __pycache__/
-*.pyc
+cache/
 dist/
+out/
+trips/*
 trips/*/evidence/
 trips/*/out/plan.png
+trips/example-thailand/evidence/
+trips/example-thailand/out/*.html
+trips/example-thailand/out/*.png
