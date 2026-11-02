@@ -52,3 +52,9 @@ Google Flights page, Airbnb search page, frankfurter.app (FX), travel.state.gov 
 - Destinations come from `src/tripforge/data/places.json`; add cities there.
 - Visa table covers a handful of countries for the Indian passport only.
 - Day plans use curated highlights per destination, not live events.
+
+## Trips folder and the planner agent
+
+Each trip lives in `trips/<slug>/`: `brief.yaml` (inputs, however few), `notes.md` (decisions, friend constraints, open questions), `out/` (menu/plan PDF + HTML + PNG) and `evidence/` (every search screenshot). Example: `trips/thailand-dec26/`.
+
+`agents/tripforge-planner.json` is a Kiro agent spec for a destination-agnostic trip planner: minimal input in, options menu out (dates with live fares, destination cards with fees and inclusions, events, priced combos, decision worksheet), then a detailed plan once you pick. Install with `cp agents/tripforge-planner.json ~/.kiro/agents/` and start a session with that agent. The agent never books anything; it gives links.
