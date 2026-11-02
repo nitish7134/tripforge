@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ m.title }} trip plan</title>
+<style>
+:root{--cream:#FFF8EE;--navy:#14213D;--or:#F77F00;--teal:#2A9D8F;--pur:#7B2CBF;--gold:#E9C46A;--grey:#5C6670;--card:#F4F1EA;--red:#E63946}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--navy);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:17px;line-height:1.45}
+.wrap{max-width:1000px;margin:0 auto;padding:0 18px 40px}
+.hero{position:relative;color:#fff;padding:54px 0 40px;background:linear-gradient(135deg,#F77F00,#7B2CBF);overflow:hidden}
+.hero.photo{background-size:cover;background-position:center}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(120deg,rgba(247,127,0,.78),rgba(20,33,61,.72))}
+.hero .wrap{position:relative}
+h1{font-size:64px;line-height:1;margin:0 0 14px;letter-spacing:-1px;text-transform:uppercase}
+.sub{font-size:22px;font-weight:700;margin:4px 0}.sub2{font-size:17px;opacity:.92}
+h2{font-size:26px;margin:36px 0 12px;letter-spacing:-.3px}
+.decision{background:var(--navy);color:#fff;border-radius:22px;padding:24px 28px;margin-top:-22px;position:relative}
+.decision .k{color:var(--gold);font-weight:700;letter-spacing:2px;font-size:14px}
+.decision .big{font-size:30px;font-weight:800;margin:6px 0 10px;line-height:1.15}
+.decision p{margin:0;color:#DDE6F5}
+.opt{border:5px solid var(--c);border-radius:22px;background:#fff;margin:28px 0;overflow:hidden;break-inside:avoid-page}
+.opt>.hd{background:var(--c);color:#fff;padding:16px 24px}
+.hd .tag{font-size:14px;font-weight:700;letter-spacing:1.5px}.hd .t{font-size:28px;font-weight:800}
+.body{padding:18px 24px 24px}
+h3{color:var(--c);font-size:16px;letter-spacing:1px;margin:20px 0 10px;text-transform:uppercase}
+.row{background:var(--card);border-radius:12px;padding:12px 16px;margin:8px 0;display:grid;grid-template-columns:110px 1fr auto;gap:6px 16px;align-items:center}
+.row .fn{font-size:24px;font-weight:800}
+.row .rt{font-weight:700;font-size:18px}.row .meta{color:var(--grey);font-size:14px}
+.row .pr{font-size:24px;font-weight:800;color:var(--c);text-align:right}
+.row.alt{opacity:.8;background:#faf8f3}.row.alt .fn{font-size:18px}.row.alt .pr{font-size:18px}
+.row.stay{grid-template-columns:1fr auto}
+.row a{color:var(--c);word-break:break-all;font-size:13px}
+.na{background:#fdecee;color:var(--red);border-radius:12px;padding:10px 16px;margin:8px 0;font-weight:700}
+.na small{display:block;color:var(--grey);font-weight:400}
+ul.plan{margin:0;padding:0;list-style:none}
+ul.plan li{padding:6px 0 6px 28px;position:relative}
+ul.plan li:before{content:"";position:absolute;left:4px;top:13px;width:12px;height:12px;border-radius:50%;background:var(--c)}
+ul.plan b{color:var(--c)}
+.totals{background:var(--c);color:#fff;border-radius:14px;padding:14px 20px;margin-top:20px}
+.totals .a{font-size:21px;font-weight:800}.totals .b{font-size:15px;opacity:.95}
+.card{background:#fff;border-radius:18px;padding:20px 24px;margin:16px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #eee}
+.kv b{color:var(--teal);white-space:nowrap}
+.lvl{display:inline-block;border-radius:8px;padding:2px 10px;color:#fff;font-weight:800}
+.l1{background:var(--teal)}.l2{background:var(--gold);color:var(--navy)}.l3{background:var(--or)}.l4{background:var(--red)}
+.photos{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.photos figure{margin:0}.photos img{width:100%;height:210px;object-fit:cover;border-radius:14px}
+figcaption{font-size:11px;color:var(--grey)}
+.est{font-size:13px;color:var(--grey)}
+.ev td,.ev th{padding:5px 8px;border-bottom:1px solid #eee;font-size:13px;text-align:left;vertical-align:top}
+.ev{width:100%;border-collapse:collapse}.ok{color:var(--teal);font-weight:800}.bad{color:var(--red);font-weight:800}
+a{color:var(--pur)}
+@media (max-width:640px){h1{font-size:40px}.row{grid-template-columns:1fr auto}.row .fn{grid-column:1/-1}.decision .big{font-size:23px}}
+@media print{@page{size:A4;margin:10mm}body{font-size:12px;background:#fff}.hero{padding:20px 0}h1{font-size:40px}.opt,.card{break-inside:avoid}a{color:inherit;text-decoration:none}}
+</style></head><body>
+
+<div class="hero{% if hero %} photo{% endif %}"{% if hero %} style="background-image:url(data:image/jpeg;base64,{{ hero.b64 }})"{% endif %}>
+{% if hero %}<div class="shade"></div>{% endif %}
+<div class="wrap">
+<h1>{{ m.title }}</h1>
+<div class="sub">{{ m.people }} travellers &bull; from {{ m.home_name }} ({{ m.home }}) &bull; nonstop flights only &bull; about {{ m.budget_night|money }} a night for stays</div>
+<div class="sub2">{{ m.prefs|join(", ") if m.prefs else "no preferences set" }} &bull; live searches on {{ m.generated }} &bull; prices in {{ m.currency }}, per person unless stated</div>
+</div></div>
+
+<div class="wrap">
+<div class="decision"><div class="k">THE DECISION</div>
+{% set b = dec.best %}
+{% if b %}
+<div class="big">{{ plan.options|length }} option{{ "s" if plan.options|length>1 }} priced; best core cost is {{ b.start|short }} to {{ b.end|short }} at {{ b.totals.core_pp|money }} a person</div>
+<p>Core cost = nonstop flights + stays share. {% for o in plan.options %}{{ o.start|short }} start: {{ o.totals.core_pp|money }}{% if o.totals.flight_legs_missing or o.totals.stays_missing %} (partial){% endif %}{{ "; " if not loop.last }}{% endfor %}. Food, drinks and tours come on top (estimates below).</p>
+{% else %}
+<div class="big">Some prices could not be fetched live</div>
+<p>Cells marked unavailable were not fabricated. Core cost so far: {% for o in plan.options %}{{ o.start|short }} start: {{ o.totals.core_pp|money }} (partial){{ "; " if not loop.last }}{% endfor %}. Re-run with <code>--browser attach</code> if a site blocked the headless browser.</p>
+{% endif %}
+</div>
+
+{% for o in plan.options %}
+{% set col = ["#7B2CBF","#2A9D8F","#F77F00"][loop.index0 % 3] %}
+<div class="opt" style="--c:{{ col }}">
+<div class="hd"><div class="tag">OPTION {{ loop.index }}{% if dec.best and o.start == dec.best.start %} &bull; LOWEST CORE COST{% endif %}</div>
+<div class="t">{{ o.stops|map(attribute="name")|join(" &rarr; ")|safe }} &nbsp; {{ o.start|day }} to {{ o.end|day }} ({{ o.nights }} nights)</div></div>
+<div class="body">
+<h3>Flights (per person, one-way nonstop, Google Flights)</h3>
+{% for lg in o.legs %}
+ {% if lg.kind == "ground" %}
+  <div class="na">{{ lg.from_name }} to {{ lg.to_name }}: same airport, ground transfer<small>Check local vans or trains.</small></div>
+ {% elif lg.rows %}
+  {% for r in lg.rows %}
+  <div class="row{% if not loop.first %} alt{% endif %}">
+   <div class="fn">{{ r.flight }}</div>
+   <div><div class="rt">{{ r.from }} {{ r.dep }} &rarr; {{ r.to }} {{ r.arr }}{% if r.next_day %} (+1){% endif %}</div>
+    <div class="meta">{{ r.airline }} &bull; {{ lg.date|day }} &bull; {{ r.duration_min|dur }} nonstop{% if loop.first %} &bull; cheapest{% endif %}</div></div>
+   <div class="pr">{{ r.price|money }}</div>
+  </div>
+  {% endfor %}
+ {% else %}
+  <div class="na">{{ lg.orig }} &rarr; {{ lg.dest }} on {{ lg.date|day }}: unavailable<small>{{ lg.error }}</small></div>
+ {% endif %}
+{% endfor %}
+
+<h3>Stays (Airbnb, entire place, {{ m.people }} guests, total for the stay)</h3>
+{% for s in o.stops %}
+ {% if s.stays %}
+  {% for st in s.stays %}
+  <div class="row stay{% if not loop.first %} alt{% endif %}">
+   <div><div class="rt">{{ s.name }} &bull; {{ s.checkin|short }} to {{ s.checkout|short }} ({{ s.nights }}N){% if loop.first %} &bull; pick{% endif %}</div>
+    <div class="meta">{{ st.name }} &bull; {{ st.kind }} &bull; {{ st.rating }} rating, {{ st.reviews }} reviews{% if st.badge %} &bull; {{ st.badge }}{% endif %}{% if st.free_cancel %} &bull; free cancellation{% endif %}</div>
+    <a href="{{ st.url }}">{{ st.url }}</a></div>
+   <div class="pr">{{ st.total|money }}<div class="meta">{{ st.per_night|money }} a night</div></div>
+  </div>
+  {% endfor %}
+ {% else %}
+  <div class="na">{{ s.name }} {{ s.checkin|short }} to {{ s.checkout|short }}: stay unavailable<small>{{ s.stay_error }}</small></div>
+ {% endif %}
+ {% for st in s.rooms %}
+  <div class="row stay alt"><div><div class="rt">Budget private room, {{ s.name }}</div><div class="meta">{{ st.name }} &bull; {{ st.rating }} ({{ st.reviews }})</div><a href="{{ st.url }}">{{ st.url }}</a></div><div class="pr">{{ st.total|money }}</div></div>
+ {% endfor %}
+{% endfor %}
+
+<h3>Day plan</h3>
+<ul class="plan">{% for d in o.days_plan %}<li><b>{{ d.date }}, {{ d.place }}:</b> {{ d.text }}</li>{% endfor %}</ul>
+
+<div class="totals">
+<div class="a">Flights {{ o.totals.flights_pp|money }} + stays share {{ o.totals.stays_pp|money }} = {{ o.totals.core_pp|money }} per person{% if o.totals.flight_legs_missing or o.totals.stays_missing %} (partial: {{ o.totals.flight_legs_missing }} flight leg(s) and {{ o.totals.stays_missing }} stay(s) unavailable){% endif %}</div>
+{% if o.totals.spend_lo_pp is not none %}<div class="b">Add about {{ o.totals.spend_lo_pp|money }} to {{ o.totals.spend_hi_pp|money }} per person for food, drinks and local transport over {{ o.totals.days }} days (estimate)</div>{% endif %}
+</div>
+</div></div>
+{% endfor %}
+
+{% set first = plan.options[0] %}
+<h2>Where to stay</h2>
+<div class="grid">
+{% for s in first.stops %}{% if s.areas %}<div class="card"><h3 style="--c:#F77F00">{{ s.name }}</h3>
+{% for a in s.areas %}<p><b>{{ a[0] }}.</b> {{ a[1] }}</p>{% endfor %}</div>{% endif %}{% endfor %}
+</div>
+
+<h2>Daily spend per person <span class="est">(estimates, not fetched prices)</span></h2>
+<div class="card">
+{% for r in first.totals.spend_rows %}<div class="kv"><span>{{ r.label }}</span><b>{{ r.lo|money }} to {{ r.hi|money }} / day</b></div>{% endfor %}
+{% if not first.totals.spend_rows %}<p>unavailable</p>{% endif %}
+<p class="est">Local-currency ranges converted at live FX: {% for k,v in plan.fx.items() %}1 {{ v.src }} = {{ v.rate }} {{ v.dst }} ({{ v.date }}){{ "; " if not loop.last }}{% endfor %}.</p>
+</div>
+
+<h2>Before you go</h2>
+<div class="grid">
+<div class="card"><h3 style="--c:#2A9D8F">Visa ({{ m.passport }} passport)</h3>
+{% for cc, v in plan.visa.items() %}<p><b>{{ plan.countries[cc] }}:</b> {% if v.status %}{{ v.status }}. <a href="{{ v.apply }}">Official link</a>. <span class="est">{{ v.verify }}</span>{% else %}unavailable. {{ v.error }}{% endif %}</p>{% endfor %}</div>
+<div class="card"><h3 style="--c:#E63946">Safety advisory (US State Dept)</h3>
+{% for cc, a in plan.advisory.items() %}<p><b>{{ plan.countries[cc] }}:</b> {% if a.title %}<span class="lvl l{{ a.level or 1 }}">Level {{ a.level }}</span> {{ a.title.split(" - ",1)[-1] }} <a href="{{ a.url }}">source</a>{% else %}unavailable. {{ a.error }}{% endif %}</p>{% endfor %}</div>
+<div class="card"><h3 style="--c:#7B2CBF">Climate in {{ first.start|day }}'s month</h3>
+{% for k, c in plan.climate.items() %}<p><b>{{ k }}:</b> {% if c.day_high_c is defined %}{{ c.day_high_c }}&deg;C day, {{ c.night_low_c }}&deg;C night, {{ c.rain_mm }} mm rain, UV {{ c.uv }} ({{ c.uv_cat }}){% if c.sea_c %}, sea {{ c.sea_c }}&deg;C{% endif %}. <a href="{{ c.url }}">Sunshine Atlas</a>{% else %}unavailable. {{ c.error }}{% endif %}</p>{% endfor %}
+<p class="est">Forecast: {% set w = plan.weather.values()|list %}{% if w and w[0] is mapping and w[0].error %}not available yet, the trip is beyond the 16-day forecast window.{% else %}see evidence folder.{% endif %}</p></div>
+</div>
+
+{% set shown = [] %}
+{% for k, ph in plan.photos.items() %}{% if ph %}{% set _ = shown.append(1) %}{% endif %}{% endfor %}
+{% if shown %}
+<h2>Places</h2>
+<div class="photos">
+{% for k, ph in plan.photos.items() %}{% for p in ph[:1] %}<figure><img alt="{{ k }}" src="data:image/jpeg;base64,{{ p.b64 }}"><figcaption>{{ k }}: {{ p.credit }} via <a href="{{ p.page }}">Wikimedia Commons</a></figcaption></figure>{% endfor %}{% endfor %}
+</div>
+{% endif %}
+
+<h2>Evidence</h2>
+<div class="card"><table class="ev"><tr><th>Fetch</th><th>Status</th><th>When</th><th>Source</th><th>File</th></tr>
+{% for e in plan.evidence %}<tr><td>{{ e.label }}</td><td class="{{ 'ok' if e.ok else 'bad' }}">{{ "ok" if e.ok else "unavailable" }}</td><td>{{ e.fetched_at }}</td>
+<td>{% if e.url %}<a href="{{ e.url }}">link</a>{% endif %}{% if e.error %} {{ e.error }}{% endif %}</td>
+<td>{% if e.file %}<a href="evidence/{{ e.file }}">{{ e.file }}</a>{% endif %}</td></tr>{% endfor %}
+</table>
+<p class="est">Flight and stay prices are live page reads at the time shown and change quickly. Open the source link before booking.</p></div>
+</div></body></html>
