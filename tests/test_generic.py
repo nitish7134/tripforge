@@ -7,16 +7,16 @@ from tripforge.events import full_moons
 def test_ground_table_beats_heuristic():
     a = {"name": "Koh Phangan", "lat": 9.73, "lon": 100.03}
     b = {"name": "Krabi", "lat": 8.09, "lon": 98.91}
-    g = ground.estimate(a, b)
-    assert g["source"] == "table" and g["inr"] == [1800, 3000]
+    g = ground.estimate(a, b, "INR")
+    assert g["source"] == "table" and g["amount"] == [1800, 3000] and g["currency"] == "INR"
 
 
 def test_ground_heuristic_any_destination():
     a = {"name": "Lisbon", "lat": 38.72, "lon": -9.14}
     b = {"name": "Porto", "lat": 41.15, "lon": -8.61}
-    g = ground.estimate(a, b)
+    g = ground.estimate(a, b, "USD")
     assert g["source"] == "heuristic" and g["mode"] == "road or rail"
-    assert 250 < g["km"] < 400 and g["inr"][0] < g["inr"][1]
+    assert 250 < g["km"] < 400 and g["amount"][0] < g["amount"][1]
     assert ground.needs_ground(a, b)
 
 

@@ -5,16 +5,14 @@ import datetime as dt
 import json
 from pathlib import Path
 
+from . import money
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 TPL = Path(__file__).resolve().parent / "templates"
-SYMBOLS = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£", "THB": "฿"}
 
 
-def _money(n, ccy="INR"):
-    if n is None:
-        return "unavailable"
-    return f"{SYMBOLS.get(ccy, ccy + ' ')}{int(n):,}"
+def _money(n, ccy):
+    return money.fmt(n, ccy)
 
 
 def _dur(m):

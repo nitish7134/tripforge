@@ -1,6 +1,6 @@
 """Resolve any place name into a stop: coordinates, country, access airports.
 
-Curated entries in data/places.json (examples, mostly Thailand) add stay areas, highlights and a stay
+Curated entries in data/places.json (optional examples) add stay areas, highlights and a stay
 centre; everything else comes from Nominatim + OurAirports, so any destination works.
 """
 from __future__ import annotations
@@ -71,7 +71,7 @@ def airport_point(a: dict) -> dict:
 
 
 def parse_spec(spec: str, country_hint: str = "") -> list[dict]:
-    """'Bangkok:4,Koh Phangan:4@URT,Krabi:2' -> resolved stops with nights."""
+    """'CityA:4,Island B:4@XYZ,CityC:2' -> resolved stops with nights."""
     out = []
     for part in [p.strip() for p in spec.split(",") if p.strip()]:
         m = re.match(r"^(?P<name>[^:@]+?)\s*(?::\s*(?P<n>\d+))?\s*(?:@(?P<iata>[A-Za-z]{3}))?$", part)

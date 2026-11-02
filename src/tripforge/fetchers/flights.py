@@ -14,7 +14,7 @@ EXPAND_JS = """async () => {
   return document.body.innerText;
 }"""
 
-_PRICE = re.compile(r"^\s*([₹$€£]|[A-Z]{3})\s?([\d,]+)\s*$", re.M)
+_PRICE = re.compile(r"^\s*([^\sA-Za-z\d,.|]{1,3}|[A-Z]{3})\s?([\d,]+)\s*$", re.M)
 _TIME = re.compile(r"(\d{1,2}:\d{2}\s?[AP]M)(\s*\+\d)?\s*([^\n]*?)\(([A-Z]{3})\)")
 _DUR = re.compile(r"Travel time:\s*(?:(\d+)\s*hr)?\s*(?:(\d+)\s*min)?")
 _FNO = re.compile(r"^(.*?)(Economy|Premium economy|Business|First)(.*?)([A-Z0-9]{2})[ \u00a0](\d{1,4})\s*$", re.M)

@@ -1,7 +1,7 @@
 """Indicative ground legs (van, bus, rail, ferry) between any two points.
 
 A table entry in data/ground.json wins; otherwise a distance heuristic produces a labelled
-"indicative" estimate. Nothing here is a fetched price.
+"indicative" estimate. Nothing here is a fetched price. Amounts come back in the trip currency.
 """
 from __future__ import annotations
 
@@ -9,14 +9,20 @@ import json
 import re
 from pathlib import Path
 
+from . import money
 from .fetchers.airports import km
 
 DATA = Path(__file__).resolve().parent / "data" / "ground.json"
 ISLAND = re.compile(r"\b(koh|ko|isla|ilha|island|isle|nusa|pulau|ile|île|insel|isola)\b", re.I)
 
-# Per-person INR per km for shared transport (bus/van/rail) and ferries; speeds in km/h.
+# Speeds in km/h and per-person price bands for shared transport (bus/van/rail) and ferries, in USD per km.
+# These are order-of-magnitude bands, NOT a published tariff: typical shared-transport fares seen on operator
+# listings such as https://12go.asia and https://www.rome2rio.com. They are converted to the trip currency at
+# runtime with frankfurter.app and always labelled indicative. Minimum fare: USD 2 to 4.
 ROAD_KMH, FERRY_KMH = 60, 30
-ROAD_INR_KM, FERRY_INR_KM = (4, 9), (15, 30)
+ROAD_USD_KM, FERRY_USD_KM = (0.05, 0.11), (0.18, 0.36)
+MIN_FARE_USD = (2.0, 4.0)
+BAND_CCY = "USD"
 ROAD_FACTOR = 1.25  # straight line -> road
 # A stop-to-stop hop at or under this road distance is ground, not a flight.
 GROUND_MAX_KM = 350
@@ -44,19 +50,33 @@ def road_km(a: dict, b: dict) -> float:
     return km(a["lat"], a["lon"], b["lat"], b["lon"]) * ROAD_FACTOR
 
 
-def lookup(a: dict, b: dict) -> dict | None:
+def _convert(lo: float, hi: float, src: str, dst: str) -> list[int] | None:
+    k = money.rate(src, dst)
+    if k is None:
+        return None
+    return [int(round(x * k, -1)) if x * k >= 50 else int(round(x * k)) for x in (lo, hi)]
+
+
+def lookup(a: dict, b: dict, currency: str | None = None) -> dict | None:
+    """Table entry with `amount` + `currency`, converted to `currency` when given (amount None if FX is down)."""
     t = _table()
     for x in ids(a):
         for y in ids(b):
             e = t.get("|".join(sorted((x, y))))
             if e:
-                return dict(e, source="table")
+                e = dict(e, source="table")
+                if currency and e["currency"].upper() != currency.upper():
+                    e["amount"] = _convert(*e["amount"], e["currency"], currency)
+                    e["listed_in"] = e["currency"]
+                    e["currency"] = currency.upper()
+                return e
     return None
 
 
-def estimate(a: dict, b: dict) -> dict:
-    """{'mode','hours':[lo,hi],'inr':[lo,hi],'km','source'} -- table entry or heuristic."""
-    e = lookup(a, b)
+def estimate(a: dict, b: dict, currency: str = BAND_CCY) -> dict:
+    """{'mode','hours':[lo,hi],'amount':[lo,hi]|None,'currency','km','source'} -- table entry or heuristic,
+    in `currency` (amount is None when the FX rate could not be fetched)."""
+    e = lookup(a, b, currency)
     d = road_km(a, b)
     if e:
         return dict(e, km=round(d))
@@ -66,12 +86,16 @@ def estimate(a: dict, b: dict) -> dict:
         ferry = min(ferry, d)
     road = max(d - ferry, 0.0)
     h = road / ROAD_KMH + ferry / FERRY_KMH + (1.0 if ferry else 0.3)
-    lo = road * ROAD_INR_KM[0] + ferry * FERRY_INR_KM[0]
-    hi = road * ROAD_INR_KM[1] + ferry * FERRY_INR_KM[1]
+    lo = max(road * ROAD_USD_KM[0] + ferry * FERRY_USD_KM[0], MIN_FARE_USD[0])
+    hi = max(road * ROAD_USD_KM[1] + ferry * FERRY_USD_KM[1], MIN_FARE_USD[1])
     mode = "road + ferry" if ferry and road > 5 else ("ferry" if ferry else "road or rail")
     return {"mode": mode, "hours": [round(h * 0.9, 1), round(h * 1.3, 1)],
-            "inr": [int(round(max(lo, 150), -1)), int(round(max(hi, 300), -1))], "km": round(d),
+            "amount": _convert(lo, hi, BAND_CCY, currency), "currency": currency.upper(), "km": round(d),
             "source": "heuristic"}
+
+
+def mid(g: dict) -> float:
+    return sum(g["amount"]) / 2 if g.get("amount") else 0.0
 
 
 def needs_ground(a: dict, b: dict) -> bool:

@@ -25,7 +25,7 @@ tripforge writes everything about one trip into **one folder**. Nothing else is 
 
 ## Privacy
 
-Trip folders contain personal data: your dates, home airport, who you travel with, screenshots of what you searched. In this repo `trips/` is **gitignored** (only `trips/README.md` and the sanitised `trips/example-thailand/` are tracked). Keep real trips out of public git. If you want them versioned, use a private repo or a private fork.
+Trip folders contain personal data: your dates, home airport, who you travel with, screenshots of what you searched. In this repo `trips/` is **gitignored** (only `trips/README.md` and the sanitised `trips/example-thailand/` and `trips/example-lisbon-morocco/` are tracked). Keep real trips out of public git. If you want them versioned, use a private repo or a private fork.
 
 ## Cleaning up
 

@@ -80,3 +80,24 @@ def nearest(lat: float, lon: float, k: int = 3, min_size: int = 1) -> list[dict]
             rows.append(dict(a, km=round(d)))
     rows.sort(key=lambda a: a["km"] * (1.0 if a["size"] >= 2 else 1.8))
     return rows[:k]
+
+
+def resolve_home(cfg: dict) -> dict:
+    """Home airport from the brief: `from` (IATA), else `home_city` (nearest airport via Nominatim).
+    There is no default: a brief without either is an error, because the tool has no home country."""
+    if cfg.get("from"):
+        a = by_iata(str(cfg["from"]))
+        if not a:
+            raise ValueError(f"unknown home airport {cfg['from']}")
+        return a
+    if cfg.get("home_city"):
+        from .geo import geocode
+        g = geocode(str(cfg["home_city"]))
+        if not g.ok:
+            raise ValueError(f"could not locate home_city {cfg['home_city']!r}: {g.error}")
+        near = nearest(g.data["lat"], g.data["lon"], k=1, min_size=2) or nearest(g.data["lat"], g.data["lon"], k=1)
+        if not near:
+            raise ValueError(f"no airport within 400 km of {cfg['home_city']!r}; set from: <IATA> in the brief")
+        return near[0]
+    raise ValueError("the brief needs your home airport: set from: <IATA> (or home_city: <name>). "
+                     "tripforge has no default home.")

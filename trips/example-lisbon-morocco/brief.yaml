@@ -1,0 +1,13 @@
+# tripforge brief · sanitised example 2 (Europe to Morocco, EUR)
+# Shows the generic shape: no currency is given, so it resolves from the home airport's country (Portugal -> EUR).
+
+destination: Morocco
+from: LIS
+people: 2
+start: 2027-03-13
+nights: 9
+prefs: [culture, food, nature]
+meal_rate: 18               # per meal per person, in EUR
+# party_rate omitted on purpose: not a party trip
+
+stops: "Marrakech:4,Fes:3,Chefchaouen:2"

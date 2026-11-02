@@ -1,0 +1,4 @@
+{
+ "_note": "Optional enrichment: carrier-name corrections for fli's airline enum (IATA code -> name). Absent codes use the name fli returns.",
+ "names": {"QP": "Akasa Air", "IX": "Air India Express", "6E": "IndiGo"}
+}

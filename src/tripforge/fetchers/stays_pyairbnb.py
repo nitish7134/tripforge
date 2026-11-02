@@ -14,7 +14,7 @@ _N = re.compile(r"(\d+)\s+night")
 
 
 def to_rows(raw: list[dict], nights: int, cin: str, cout: str, adults: int, currency: str) -> list[dict]:
-    host = "airbnb.co.in" if currency == "INR" else "airbnb.com"
+    host = "airbnb.com"  # the currency= parameter selects the display currency
     out = []
     for x in raw or []:
         unit = (x.get("price") or {}).get("unit") or {}

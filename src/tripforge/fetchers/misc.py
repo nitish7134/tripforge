@@ -96,19 +96,3 @@ def fetch_weather(lat: float, lon: float, start: str, end: str, evid: Path, tag:
         return Result(ok=bool(rows), data=rows, source_url=url, screenshot_path=str(evid / f"weather_{tag}.json"))
     except Exception as e:  # noqa: BLE001
         return fail(str(e), url)
-
-
-def fetch_currency(cc: str) -> Result:
-    """ISO country code -> local currency code, via restcountries.com (keyless), cached 30 days."""
-    from .. import cache
-
-    def go() -> Result:
-        url = f"https://restcountries.com/v3.1/alpha/{cc}?fields=currencies"
-        try:
-            with client(15) as c:
-                j = c.get(url).json()
-            j = j[0] if isinstance(j, list) else j
-            return Result(ok=True, data=next(iter(j["currencies"])), source_url=url)
-        except Exception as e:  # noqa: BLE001
-            return fail(f"currency lookup failed: {e}", url)
-    return cache.cached("geo:currency", {"cc": cc}, go)

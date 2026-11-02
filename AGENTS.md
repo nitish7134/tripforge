@@ -11,8 +11,9 @@ Read `agents/PLANNER_PROMPT.md` and follow it. In short: take minimal input, thi
 ## How to run the tool
 ```bash
 uv venv && uv pip install -e .            # or: pip install -e .
-tripforge plan --from BLR --stops "Phuket:2,Krabi:3,Bangkok:5" --start 2026-12-24 \
-  --people 2 --budget-night 5000 --prefs veg,party --currency INR --trip my-trip
+tripforge plan --from <IATA> --stops "CityA:2,CityB:3,CityC:5" --start 2026-12-24 \
+  --people 2 --prefs veg,party --currency <ISO 4217> --trip my-trip
+# two worked briefs: trips/example-thailand (INR) and trips/example-lisbon-morocco (EUR)
 # outputs: trips/my-trip/out/{plan.pdf,plan.html,plan.png,plan.json}, trips/my-trip/evidence/
 ```
 Playwright needs a browser: `playwright install chromium`, or set `--browser headless` to use installed Google Chrome. If Google/Airbnb block the headless browser, use `--browser attach` (see README).
@@ -21,6 +22,6 @@ Playwright needs a browser: `playwright install chromium`, or set `--browser hea
 - Write every trip into `trips/<slug>/` (see `TRIPS.md`); never scatter files elsewhere. Trips are gitignored; commit only sanitised examples.
 - One trip = one folder: `brief.yaml` (inputs), `notes.md` (decisions, constraints, open questions), `out/`, `evidence/`.
 - Commit trips on a branch and open a PR; `main` is protected.
-- Keep Thailand data in `src/tripforge/data/` as examples only; the tool must stay destination-agnostic.
+- Keep example data (Thailand ground fares, curated places, airline-name fixes) in `src/tripforge/data/` only; the tool must stay destination- and traveller-agnostic. No currency, home airport, spend rate or country hint may be hardcoded in code or templates (`tests/test_no_bias.py` enforces it). Defaults come from the brief.
 - Tests: `pytest -q` (parser fixtures in `tests/fixtures`). Add a fixture when a scraper changes.
 - Never add paid API keys as hard requirements. Optional keys are read from env (`SERPAPI_KEY`).

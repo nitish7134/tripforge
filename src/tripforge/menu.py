@@ -14,14 +14,14 @@ import statistics
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import cache, events, ground
+from . import cache, events, ground, money
 from .fetchers import airports as AP
 from .fetchers import flights_fli as FL
 from .fetchers.places import wikivoyage
 from .stops import StopError, resolve
 
 VIBE = {"party": r"nightlife|party|parties|club|bar|full moon|rave|pub crawl",
-        "veg": r"vegetarian|vegan|indian restaurant|\bveg\b",
+        "veg": r"vegetarian|vegan|\bveg\b",
         "beach": r"beach|snorkel|island|dive|diving",
         "culture": r"temple|museum|palace|old town|heritage|cathedral|market",
         "nature": r"hike|hiking|waterfall|national park|trek|jungle|mountain",
@@ -45,7 +45,8 @@ def _fit(text: str, prefs: list[str]) -> dict:
     return out
 
 
-def _candidate(d: dict, country: str, prefs: list[str], home: str, start: dt.date, live: bool) -> dict | None:
+def _candidate(d: dict, country: str, prefs: list[str], home: str, start: dt.date, live: bool,
+               currency: str, home_cc: str) -> dict | None:
     wv = wikivoyage(d["page"])
     if not wv.ok:
         return None
@@ -59,12 +60,12 @@ def _candidate(d: dict, country: str, prefs: list[str], home: str, start: dt.dat
     musts.sort(key=lambda i: (not i.get("price"), i["kind"] != "see"))
     fl = None
     if live and s["iata"] != home:
-        r = cache.cached("flights:fli", {"o": home, "d": s["iata"], "date": start.isoformat(), "ccy": "INR", "v": 1},
-                         lambda: FL.fetch_leg(home, s["iata"], start.isoformat()))
+        r = cache.cached("flights:fli", {"o": home, "d": s["iata"], "date": start.isoformat(), "ccy": currency, "gl": home_cc, "v": 1},
+                         lambda: FL.fetch_leg(home, s["iata"], start.isoformat(), currency, home_cc))
         priced = [x for x in (r.data or []) if x.get("price")] if r.ok else []
         fl = priced[0] if priced else None
     acc = ground.estimate({"name": s["airport_city"], "iata": s["iata"], "is_airport": True,
-                           "lat": s["airport_lat"], "lon": s["airport_lon"]}, s) if s["airport_km"] > 40 else None
+                           "lat": s["airport_lat"], "lon": s["airport_lon"]}, s, currency) if s["airport_km"] > 40 else None
     nights = 2 + min(2, len(musts) // 6)
     return {"name": d["name"], "page": d["page"], "kind": d["kind"], "blurb": d["blurb"] or wv.data["lead"][:180],
             "lat": s["lat"], "lon": s["lon"], "cc": s["cc"], "iata": s["iata"], "airport_km": s["airport_km"],
@@ -85,14 +86,14 @@ def _verdict(c: dict, prefs: list[str]) -> tuple[str, str]:
     return worth, skip
 
 
-def _route_cost(order: list[dict], home: str, ppl: int) -> dict:
+def _route_cost(order: list[dict], home: str, ppl: int, currency: str) -> dict:
     g = 0
     out_f, back_f = order[0]["flight"], order[-1]["flight"]
     # Return fare assumed ~ the outbound fare to the last stop's airport (est). Missing either -> unavailable.
     fl = (out_f["price"] + back_f["price"]) if out_f and back_f else None
     for a, b in zip(order, order[1:]):
         if ground.needs_ground(a, b):
-            g += sum(ground.estimate(a, b)["inr"]) / 2
+            g += ground.mid(ground.estimate(a, b, currency))
         else:
             near = [c["flight"]["price"] for c in (a, b) if c["flight"]]
             g += (min(near) / 3) if near else 0  # domestic hop ~ a third of the long-haul fare (est)
@@ -106,12 +107,18 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
     dest = cfg.get("destination") or cfg.get("country")
     if not dest:
         raise SystemExit("brief needs destination (country or region)")
-    home = str(cfg.get("from", "BLR")).upper()
+    try:
+        home_ap = AP.resolve_home(cfg)
+        currency = money.resolve_currency(cfg, home_ap["cc"])
+    except ValueError as e:
+        raise SystemExit(str(e)) from e
+    home, home_cc = home_ap["iata"], home_ap["cc"]
     prefs = cfg.get("prefs") or []
     prefs = [p.strip().lower() for p in (prefs.split(",") if isinstance(prefs, str) else prefs)]
     ppl, nights = int(cfg.get("people", 2)), int(cfg.get("nights", 10))
-    budget = int(cfg.get("budget_night", 5000))
-    meal, party = int(cfg.get("meal_rate", 1000)), int(cfg.get("party_rate", 2500))
+    budget = int(cfg["budget_night"]) if cfg.get("budget_night") else 0  # 0 = no nightly cap
+    meal = int(cfg["meal_rate"]) if cfg.get("meal_rate") is not None else None
+    party = int(cfg["party_rate"]) if cfg.get("party_rate") is not None else None
     start, end = _window(cfg)
     top = wikivoyage(dest)
     if not top.ok:
@@ -122,7 +129,7 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
     half = n // 2 + 2
     dests = cities[:half] + others[:half]
     with ThreadPoolExecutor(6) as ex:
-        cands = [c for c in ex.map(lambda d: _candidate(d, dest, prefs, home, start, live), dests) if c]
+        cands = [c for c in ex.map(lambda d: _candidate(d, dest, prefs, home, start, live, currency, home_cc), dests) if c]
     cands.sort(key=lambda c: -c["fit_score"])
     cands = cands[:n]
     # Stay price: live pyairbnb for the top few, the median of those as est for the rest.
@@ -132,7 +139,7 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
             s = resolve(c["name"], dest)
             s["nights"] = c["nights"]
             cin, cout = start.isoformat(), (start + dt.timedelta(days=c["nights"])).isoformat()
-            r = fetch_stay(s, cin, cout, ppl, budget, "INR", "pyairbnb", lambda: None)
+            r = fetch_stay(s, cin, cout, ppl, budget, currency, "pyairbnb", lambda: None)
             return r.data["ranked"][0]["per_night"] if r.ok else None
         with ThreadPoolExecutor(3) as ex:
             for c, pn in zip(cands[:6], ex.map(st, cands[:6])):
@@ -160,7 +167,7 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
             extra = nights - sum(c["nights"] for c in order)
             for i in range(max(extra, 0)):
                 order[i % len(order)] = dict(order[i % len(order)], nights=order[i % len(order)]["nights"] + 1)
-            cost = _route_cost(order, home, ppl)
+            cost = _route_cost(order, home, ppl, currency)
             combos.append({"stops": [c["name"] for c in order], "nights": [c["nights"] for c in order],
                            "fit": sum(c["fit_score"] for c in order), "cost": cost,
                            "stops_spec": ",".join(f"{c['name']}:{c['nights']}" for c in order)})
@@ -174,12 +181,15 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
                 seen.add(c["stops_spec"])
                 picks.append(c)
                 break
-    label = ["best vibe fit", "cheapest core", "fewest moves", "best fit per rupee"]
+    label = ["best vibe fit", "cheapest core", "fewest moves", "best fit per unit of cost"]
     for p, lb in zip(picks, label):
         p["why"] = lb
     days = nights + 1
-    spend = {"meals": days * 3 * meal, "party": (sum(1 for _ in range(nights // 2)) * party) if "party" in prefs else 0}
-    data = {"destination": dest, "window": {"start": start.isoformat(), "end": end.isoformat()}, "prefs": prefs,
+    wants_party = "party" in prefs
+    spend = None
+    if meal is not None and (party is not None or not wants_party):
+        spend = {"meals": days * 3 * meal, "party": (nights // 2) * party if wants_party else 0}
+    data = {"currency": currency, "home": home, "destination": dest, "window": {"start": start.isoformat(), "end": end.isoformat()}, "prefs": prefs,
             "rates": {"meal_rate": meal, "party_rate": party}, "spend_pp_est": spend, "candidates": cands,
             "combos": picks, "events": moon + (fest.data if fest.ok else []), "source": top.source_url}
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -191,27 +201,30 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
     return md, js
 
 
-def _money(n):
-    return "unavailable" if n is None else f"₹{int(n):,}"
+def _money(n, ccy):
+    return money.fmt(n, ccy)
 
 
 def _md(d: dict, home: str) -> str:
+    M = d["currency"]
+    r = d["rates"]
+    rates = (f"{_money(r['meal_rate'], M)}/meal" + (f", {_money(r['party_rate'], M)}/party night" if r["party_rate"] is not None else "")
+             if r["meal_rate"] is not None else "not set (add meal_rate/party_rate to the brief)")
     L = [f"# {d['destination']} options menu ({d['window']['start']} to {d['window']['end']})", "",
-         f"Prefs: {', '.join(d['prefs']) or 'none'}. Rates: {_money(d['rates']['meal_rate'])}/meal, "
-         f"{_money(d['rates']['party_rate'])}/party night. Tags: live = fetched now, est = estimate. "
+         f"Prefs: {', '.join(d['prefs']) or 'none'}. Rates: {rates}. Tags: live = fetched now, est = estimate. "
          f"Candidates from [Wikivoyage]({d['source']}); community suggestions, not endorsements.", "",
          "## Candidate stops", ""]
     for c in d["candidates"]:
         fl = c["flight"]
-        get = (f"{fl['flight']} {home}->{c['iata']} {fl['dep']} {_money(fl['price'])} (live, nonstop)" if fl
+        get = (f"{fl['flight']} {home}->{c['iata']} {fl['dep']} {_money(fl['price'], M)} (live, nonstop)" if fl
                else f"fly to {c['iata']}: no nonstop priced from {home} (unavailable)")
         if c["access"]:
             a = c["access"]
-            get += f" + {a['mode']} {a['hours'][0]}-{a['hours'][1]}h {_money(a['inr'][0])}-{_money(a['inr'][1])} (est)"
+            get += f" + {a['mode']} {a['hours'][0]}-{a['hours'][1]}h {_money(a['amount'][0], M)}-{_money(a['amount'][1], M)} (est)" if a.get("amount") else f" + {a['mode']} {a['hours'][0]}-{a['hours'][1]}h (price unavailable)"
         L += [f"### {c['name']} ({c['kind']}) -- fit {c['fit_score']}", "", c["blurb"], "",
               f"- Vibe fit: {', '.join(f'{k} {v}' for k, v in c['fit'].items()) or 'n/a'} (mentions in the article)",
               f"- Suggested nights: {c['nights']}",
-              f"- Stay: {_money(c['stay_pn'])}/night ({c['stay_tag']}); includes the Airbnb nightly price for an entire "
+              f"- Stay: {_money(c['stay_pn'], M)}/night ({c['stay_tag']}); includes the Airbnb nightly price for an entire "
               f"place, excludes service/cleaning fees shown at checkout, food and transfers",
               f"- Getting there: {get}",
               "- Must-dos: " + ("; ".join(f"{m['name']} ({m['fee']})" for m in c["musts"]) or "none listed"),
@@ -225,15 +238,16 @@ def _md(d: dict, home: str) -> str:
     for i, c in enumerate(d["combos"], 1):
         k = c["cost"]
         L.append(f"{i}. **{' -> '.join(f'{s} {n}N' for s, n in zip(c['stops'], c['nights']))}** ({c['why']}): "
-                 f"core {_money(k['core_pp'])}/person = flights {_money(k['flights_pp'])} + hops {_money(k['ground_pp'])} "
-                 f"+ stays {_money(k['stays_pp'])} [{k['tag']}]. `--stops \"{c['stops_spec']}\"`")
+                 f"core {_money(k['core_pp'], M)}/person = flights {_money(k['flights_pp'], M)} + hops {_money(k['ground_pp'], M)} "
+                 f"+ stays {_money(k['stays_pp'], M)} [{k['tag']}]. `--stops \"{c['stops_spec']}\"`")
     s = d["spend_pp_est"]
-    L += ["", f"Daily spend on top (est, your rates): meals {_money(s['meals'])} + party {_money(s['party'])} per person.", ""]
+    L += ["", (f"Daily spend on top (est, your rates): meals {_money(s['meals'], M)} + party {_money(s['party'], M)} per person."
+               if s else "Daily spend: set meal_rate/party_rate in brief.yaml to see daily spend."), ""]
     return "\n".join(L)
 
 
 def _variants(d: dict) -> str:
     L = [f"# Route variants for {d['destination']} (community suggestions)", ""]
     for i, c in enumerate(d["combos"], 1):
-        L.append(f"{i}. {c['stops_spec']} -- {c['why']}, core {_money(c['cost']['core_pp'])}/person ({c['cost']['tag']})")
+        L.append(f"{i}. {c['stops_spec']} -- {c['why']}, core {_money(c['cost']['core_pp'], d['currency'])}/person ({c['cost']['tag']})")
     return "\n".join(L) + "\n"
