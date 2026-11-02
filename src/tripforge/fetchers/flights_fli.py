@@ -1,0 +1,84 @@
+"""Browserless Google Flights via fli (https://github.com/punitarani/fli).
+
+One-way nonstop per leg, priced in `currency` for country `country` (gl=IN gives the same INR fares
+the Indian Google Flights page shows). Returns rows in the same shape as fetchers.flights.parse_flights,
+including the flight number (carrier code + number) that fli exposes on every leg.
+"""
+from __future__ import annotations
+
+import time
+import urllib.parse
+
+from .common import Result, fail
+
+# fli's airline enum maps a few Indian codes to the wrong carrier name.
+AIRLINE_FIX = {"QP": "Akasa Air", "IX": "Air India Express", "6E": "IndiGo"}
+SYMBOL = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£", "THB": "฿"}
+
+
+def _hm(t) -> str:
+    """datetime -> '9:45AM' (matches the browser parser's format)."""
+    return t.strftime("%I:%M%p").lstrip("0")
+
+
+def to_rows(results, orig: str, dest: str, currency: str) -> list[dict]:
+    out, seen = [], set()
+    for res in results or []:
+        if getattr(res, "stops", 0) or len(res.legs) != 1:
+            continue
+        lg = res.legs[0]
+        code = lg.airline.name.lstrip("_")
+        fno = f"{code} {lg.flight_number}"
+        if fno in seen:
+            continue
+        seen.add(fno)
+        dep, arr = lg.departure_datetime, lg.arrival_datetime
+        price = int(round(res.price)) if res.price is not None and (res.currency in (None, currency)) else None
+        out.append({
+            "airline": AIRLINE_FIX.get(code) or getattr(lg.airline, "value", code), "aircraft": lg.aircraft or "",
+            "flight": fno, "from": lg.departure_airport.name.lstrip("_"), "to": lg.arrival_airport.name.lstrip("_"),
+            "dep": _hm(dep), "arr": _hm(arr), "next_day": arr.date() > dep.date(),
+            "duration_min": res.duration or lg.duration,
+            "price": price, "currency_symbol": SYMBOL.get(currency, currency),
+        })
+    out = [r for r in out if r["from"] == orig and r["to"] == dest] or out
+    out.sort(key=lambda r: (r["price"] is None, r["price"] or 0))
+    return out
+
+
+def gf_url(orig: str, dest: str, date: str, currency: str) -> str:
+    q = f"Flights from {orig} to {dest} on {date} nonstop one way"
+    return "https://www.google.com/travel/flights?q=" + urllib.parse.quote(q) + f"&curr={currency}&hl=en&gl=IN"
+
+
+def fetch_leg(orig: str, dest: str, date: str, currency: str = "INR", country: str = "IN",
+              tries: int = 2) -> Result:
+    """Query fli up to `tries` times (Google returns an empty page ~1 in 60). Empty -> ok=False."""
+    url = gf_url(orig, dest, date, currency)
+    try:
+        from fli.models import Airport, FlightSegment, MaxStops, PassengerInfo
+        from fli.models.google_flights.flights import FlightSearchFilters
+        from fli.search import SearchFlights
+    except Exception as e:  # noqa: BLE001
+        return fail(f"fli not installed: {e}", url)
+    try:
+        a, b = getattr(Airport, orig), getattr(Airport, dest)
+    except AttributeError as e:
+        return fail(f"fli does not know airport {e}", url)
+    filt = FlightSearchFilters(passenger_info=PassengerInfo(adults=1), stops=MaxStops.NON_STOP,
+                               flight_segments=[FlightSegment(departure_airport=[[a, 0]],
+                                                              arrival_airport=[[b, 0]], travel_date=date)])
+    last_err = "fli returned no nonstop flights"
+    for i in range(tries):
+        try:
+            res = SearchFlights().search(filt, currency=currency, country=country, language="en")
+            rows = to_rows(res, orig, dest, currency)
+            if rows:
+                r = Result(ok=True, data=rows, source_url=url)
+                r.backend = "fli"  # type: ignore[attr-defined]
+                return r
+        except Exception as e:  # noqa: BLE001
+            last_err = f"fli error: {type(e).__name__}: {e}"
+        if i + 1 < tries:
+            time.sleep(1.5)
+    return fail(last_err, url)
