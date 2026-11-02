@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tripforge import ground, money
+from tripforge import money
 from tripforge.fetchers import airports as AP
 from tripforge.fetchers.common import Result
 from tripforge.plan import SPEND_PLACEHOLDER, daily_spend
@@ -60,20 +60,6 @@ def test_template_renders_placeholder_branch():
     assert "spend_note" in tpl
 
 
-def test_ground_amounts_follow_trip_currency():
-    a = {"name": "Lisbon", "lat": 38.72, "lon": -9.14}
-    b = {"name": "Porto", "lat": 41.15, "lon": -8.61}
-    g = ground.estimate(a, b, "USD")  # no FX needed: bands are in USD
-    assert g["currency"] == "USD" and g["amount"][0] < g["amount"][1]
-
-
-def test_ground_table_is_self_describing_and_converted(monkeypatch):
-    monkeypatch.setattr(money, "rate", lambda s, d: 0.5 if (s, d) == ("INR", "EUR") else 1.0)
-    a, b = {"name": "Koh Phangan"}, {"name": "Krabi"}
-    g = ground.lookup(a, b, "EUR")
-    assert g["currency"] == "EUR" and g["listed_in"] == "INR" and g["amount"] == [900, 1500]
-
-
 def test_no_hardcoded_traveller_in_source():
     """INR / BLR / Thailand may live in example data and tests only. money.py's ISO symbol table is the one
     place a currency code is named (INR is a major currency, not a default)."""
@@ -88,3 +74,9 @@ def test_no_hardcoded_traveller_in_source():
             if bad.search(line):
                 hits.append(f"{p.relative_to(SRC)}:{i}: {line.strip()}")
     assert not hits, "\n".join(hits)
+
+
+def test_no_data_files_under_src():
+    """Fetch strategy, not data: src/ ships no JSON/YAML/CSV data (no place names, no prices)."""
+    found = [str(p.relative_to(SRC)) for p in SRC.rglob("*") if p.suffix in {".json", ".yaml", ".yml", ".csv"}]
+    assert not found, f"data files under src/: {found}"
