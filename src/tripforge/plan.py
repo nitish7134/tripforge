@@ -50,6 +50,10 @@ def _d(s: str) -> dt.date:
     return dt.date.fromisoformat(s)
 
 
+# City pairs normally travelled by road or ferry; no flight search is attempted.
+GROUND_PAIRS = {frozenset(x) for x in (("HKT", "KBV"), ("HKT", "USM"), ("KUL", "PEN"), ("HAN", "DAD"))}
+
+
 def build_option(home: str, stops: list[dict], start: str) -> dict:
     d = _d(start)
     legs, prev, prev_name, prev_cc = [], home, None, None
@@ -62,7 +66,7 @@ def build_option(home: str, stops: list[dict], start: str) -> dict:
         prev, prev_name, d = s["iata"], s["name"], cout
     legs.append({"orig": prev, "dest": home, "date": d.isoformat(), "from_name": prev_name, "to_name": "home"})
     for lg in legs:
-        lg["kind"] = "ground" if lg["orig"] == lg["dest"] else "flight"
+        lg["kind"] = "ground" if (lg["orig"] == lg["dest"] or frozenset((lg["orig"], lg["dest"])) in GROUND_PAIRS) else "flight"
     return {"start": start, "end": d.isoformat(), "nights": sum(s["nights"] for s in stops),
             "legs": legs, "stops": out_stops}
 
@@ -148,7 +152,7 @@ def run_plan(*, home: str, stops_spec: str, starts: list[str], people: int, budg
         legs = []
         for lg in o["legs"]:
             if lg["kind"] == "ground":
-                legs.append({**lg, "rows": [], "note": "same airport pair; ground transfer", "ok": False})
+                legs.append({**lg, "rows": [], "note": "ground transfer", "ok": False})
                 continue
             r = flight_res.get((lg["orig"], lg["dest"], lg["date"]))
             rows = (r.data or [])[:3] if r and r.ok else []
