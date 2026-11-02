@@ -1,7 +1,8 @@
-"""Events in a date window: lunar dates (computed) + festival mentions from Wikivoyage/Wikipedia.
+"""Events in a date window: public holidays (Nager.Date), festival mentions from Wikivoyage/Wikipedia, and
+moon-dated events only when a stop's guide article mentions one.
 
-All of it is labelled: lunar dates are astronomical approximations (+/- 1 day), festival rows are
-text mentions with a source link, never confirmed listings.
+All of it is labelled: holidays are fetched, lunar dates are astronomical approximations (+/- 1 day),
+festival rows are text mentions with a source link, never confirmed listings.
 """
 from __future__ import annotations
 
@@ -84,13 +85,47 @@ def wikipedia_festivals(country: str, start: dt.date, end: dt.date) -> Result:
     return cache.cached("places:wpfest", {"c": country, "s": str(start), "e": str(end), "v": 2}, go)
 
 
+NAGER = "https://date.nager.at/api/v3/PublicHolidays/{year}/{cc}"
+
+
+def public_holidays(cc: str, start: dt.date, end: dt.date) -> Result:
+    """Public holidays of country `cc` inside [start, end]: data = [{date, name, local}]."""
+    def go() -> Result:
+        rows, url = [], NAGER.format(year=start.year, cc=cc.upper())
+        try:
+            for y in range(start.year, end.year + 1):
+                url = NAGER.format(year=y, cc=cc.upper())
+                r = httpx.get(url, headers=HEADERS, timeout=20)
+                if r.status_code != 200:
+                    return fail(f"nager.date HTTP {r.status_code} for {cc}", url)
+                rows += [{"date": h["date"], "name": h["name"], "local": h.get("localName", "")} for h in r.json()
+                         if start.isoformat() <= h["date"] <= end.isoformat()]
+        except Exception as e:  # noqa: BLE001
+            return fail(f"nager.date error: {type(e).__name__}", url)
+        return Result(ok=True, data=rows, source_url=url)
+    return cache.cached("holidays", {"cc": cc.upper(), "s": str(start), "e": str(end)}, go)
+
+
+def holiday_rows(res: Result, label: str, role: str) -> list[dict]:
+    """role: 'home' (leave-day planning) or 'destination' (closures, crowds)."""
+    if not res.ok:
+        return []
+    why = "plan leave days around it" if role == "home" else "expect closures and crowds"
+    return [{"text": f"Public holiday in {label}: {h['name']} on {dt.date.fromisoformat(h['date']).strftime('%a %d %b')} ({why})",
+             "src": "nager.date", "tag": "live", "date": h["date"], "url": res.source_url} for h in res.data]
+
+
+_MOON = re.compile(r"\b(full|new) moon\b", re.I)
+
+
 def lunar_rows(start: dt.date, end: dt.date, texts: list[str]) -> list[dict]:
-    rows = []
-    blob = " ".join(texts).lower()
-    for d in full_moons(start, end):
-        r = {"text": f"Full moon about {d.strftime('%a %d %b')} (computed, +/- 1 day)", "src": "computed",
-             "tag": "est", "date": d.isoformat(), "url": ""}
-        if "full moon" in blob:
-            r["text"] += "; the destination text mentions full-moon events, check the local date"
-        rows.append(r)
-    return rows
+    """Moon-dated rows only when a stop's guide text mentions a moon-dated event; never by default."""
+    blob = " ".join(texts)
+    m = _MOON.search(blob)
+    if not m:
+        return []
+    phase = m.group(1).lower()
+    dates = full_moons(start, end) if phase == "full" else []
+    return [{"text": f"{phase.capitalize()} moon about {d.strftime('%a %d %b')} (computed, +/- 1 day); the destination "
+                     "guide mentions moon-dated events, check the local date", "src": "computed", "tag": "est",
+             "date": d.isoformat(), "url": ""} for d in dates]

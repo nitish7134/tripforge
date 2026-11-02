@@ -1,4 +1,4 @@
-"""Real named places per stop: OpenStreetMap Overpass (veg food, nightlife, sights) + Wikivoyage See/Do.
+"""Real named places per stop: OpenStreetMap Overpass (diet-tagged food, nightlife, sights) + Wikivoyage See/Do/Eat.
 
 Keyless. Overpass is called at most once a second with a User-Agent; everything is cached 7 days.
 OSM tags are sparse on small islands, so callers keep the curated highlight list as a fallback.
@@ -28,10 +28,20 @@ def _polite():
         _last[0] = time.time()
 
 
-def _q(lat: float, lon: float, r: int) -> str:
+# Generic dietary tags a brief may list in `prefs`: pref -> (OSM diet:* key, regex for Wikivoyage Eat listings).
+# No cuisine is assumed; a diet is only searched when the traveller asks for it.
+DIETS = {"veg": ("diet:vegetarian", r"vegetarian|vegan|\bveg\b"), "vegan": ("diet:vegan", r"vegan"),
+         "halal": ("diet:halal", r"halal"), "kosher": ("diet:kosher", r"kosher"),
+         "gluten-free": ("diet:gluten_free", r"gluten")}
+
+
+def diets_in(prefs) -> tuple[str, ...]:
+    return tuple(sorted(p for p in (prefs or []) if p in DIETS))
+
+
+def _q(lat: float, lon: float, r: int, diets: tuple = ()) -> str:
     a = f"(around:{r},{lat},{lon})"
-    parts = [f'node["amenity"="{x}"]["diet:vegetarian"]{a};' for x in ("restaurant", "cafe", "fast_food")]
-    parts += [f'node["amenity"="{x}"]["diet:vegan"]{a};' for x in ("restaurant", "cafe")]
+    parts = [f'node["amenity"="{x}"]["{DIETS[d][0]}"]{a};' for d in diets for x in ("restaurant", "cafe", "fast_food")]
     parts += [f'node["amenity"="{x}"]["name"]{a};' for x in ("bar", "nightclub", "pub")]
     parts += [f'nwr["tourism"="{x}"]["name"]{a};' for x in ("attraction",)]
     parts += [f'way["natural"="beach"]["name"]{a};']
@@ -45,8 +55,8 @@ def _name(t: dict) -> str | None:
     return n.strip()
 
 
-def classify(elements: list[dict]) -> dict:
-    out = {"veg": [], "nightlife": [], "sights": []}
+def classify(elements: list[dict], diets: tuple = ()) -> dict:
+    out = {"diet": {d: [] for d in diets}, "nightlife": [], "sights": []}
     seen = set()
     for e in elements:
         t = e.get("tags") or {}
@@ -58,10 +68,10 @@ def classify(elements: list[dict]) -> dict:
         item = {"name": n, "lat": lat, "lon": lon,
                 "osm": f"https://www.openstreetmap.org/{e.get('type', 'node')}/{e.get('id')}"}
         am = t.get("amenity", "")
-        if am in ("restaurant", "cafe", "fast_food") and (t.get("diet:vegetarian") in ("yes", "only")
-                                                          or t.get("diet:vegan") in ("yes", "only")):
-            item["kind"] = "pure veg" if "only" in (t.get("diet:vegetarian"), t.get("diet:vegan")) else "veg options"
-            out["veg"].append(item)
+        hit = [d for d in diets if t.get(DIETS[d][0]) in ("yes", "only")]
+        if am in ("restaurant", "cafe", "fast_food") and hit:
+            for d in hit:
+                out["diet"][d].append(dict(item, kind=f"only {d}" if t.get(DIETS[d][0]) == "only" else f"{d} options"))
         elif am in ("bar", "nightclub", "pub"):
             item["kind"] = am
             out["nightlife"].append(item)
@@ -73,16 +83,17 @@ def classify(elements: list[dict]) -> dict:
         seen.add(n.lower())
     # Nightclubs before bars; pure-veg before veg-options; named attractions before viewpoints.
     out["nightlife"].sort(key=lambda x: {"nightclub": 0, "bar": 1, "pub": 2}.get(x["kind"], 3))
-    out["veg"].sort(key=lambda x: x["kind"] != "pure veg")
+    for lst in out["diet"].values():
+        lst.sort(key=lambda x: not x["kind"].startswith("only"))
     out["sights"].sort(key=lambda x: {"attraction": 0, "beach": 1, "viewpoint": 2}.get(x["kind"], 3))
     return out
 
 
-def overpass(lat: float, lon: float, radius: int = 5000) -> Result:
-    params = {"lat": round(lat, 3), "lon": round(lon, 3), "r": radius, "v": 2}
+def overpass(lat: float, lon: float, radius: int = 5000, diets: tuple = ()) -> Result:
+    params = {"lat": round(lat, 3), "lon": round(lon, 3), "r": radius, "d": list(diets), "v": 3}
 
     def go() -> Result:
-        q, err, t0 = _q(lat, lon, radius), "overpass unavailable", time.time()
+        q, err, t0 = _q(lat, lon, radius, diets), "overpass unavailable", time.time()
         # The public instance is often slow (30-60 s) or briefly 429/502; retry within a 100 s budget.
         for ep in (OVERPASS[0],):  # degraded public instance: one bounded try, Wikivoyage fills the gap
             if time.time() - t0 > 100:
@@ -91,7 +102,7 @@ def overpass(lat: float, lon: float, radius: int = 5000) -> Result:
             try:
                 r = httpx.post(ep, data={"data": q}, headers=HEADERS, timeout=httpx.Timeout(40, connect=8))
                 if r.status_code == 200 and r.text.lstrip().startswith("{"):
-                    return Result(ok=True, data=classify(r.json().get("elements", [])), source_url=ep)
+                    return Result(ok=True, data=classify(r.json().get("elements", []), diets), source_url=ep)
                 err = f"overpass HTTP {r.status_code}"
                 time.sleep(4)
             except Exception as e:  # noqa: BLE001
@@ -100,7 +111,7 @@ def overpass(lat: float, lon: float, radius: int = 5000) -> Result:
     return cache.cached("places:overpass", params, go)
 
 
-_LISTING = re.compile(r"\{\{\s*(see|do|eat|drink|listing)\s*\|(.*?)\}\}", re.S | re.I)
+_LISTING = re.compile(r"\{\{\s*(see|do|eat|drink|sleep|listing)\s*\|(.*?)\}\}", re.S | re.I)
 
 
 def _field(body: str, k: str) -> str:
@@ -121,7 +132,7 @@ def wikivoyage(page: str) -> Result:
             return fail(f"wikivoyage error: {type(e).__name__}", url)
         items = []
         for kind, body in _LISTING.findall(text):
-            if kind.lower() == "listing" and _field(body, "type").lower() not in ("see", "do", "eat", "drink"):
+            if kind.lower() == "listing" and _field(body, "type").lower() not in ("see", "do", "eat", "drink", "sleep"):
                 continue
             name = _field(body, "name")
             if not name:
@@ -129,14 +140,15 @@ def wikivoyage(page: str) -> Result:
             content = _field(body, "content")
             first = re.split(r"(?<=[.!?])\s", re.sub(r"'''?|<[^>]+>", "", content), maxsplit=1)[0][:160]
             items.append({"name": name, "kind": (kind if kind.lower() != "listing" else _field(body, "type")).lower(),
-                          "blurb": first, "price": _field(body, "price")[:80], "veg": bool(re.search(r"vegetarian|vegan|\bveg\b", content, re.I)),
+                          "blurb": first, "price": _field(body, "price")[:80],
+                          "lat": _field(body, "lat"), "lon": _field(body, "long"), "text": content[:600],
                           "adult": bool(re.search(r"go-?go|ladyboy|girly|hostess|\bstrip", content, re.I))})
         lead = re.sub(r"\{\{.*?\}\}|\[\[(?:File|Image):.*?\]\]|'''?", "", text.split("\n==", 1)[0], flags=re.S)
         lead = re.sub(r"\[\[(?:[^|\]]*\|)?([^\]]*)\]\]", r"\1", lead).strip()
         return Result(ok=True, data={"items": items, "lead": lead[:600], "go_next": _go_next(text),
                                      "destinations": destinations(text), "text": text[:120000],
                                      "title": js["parse"]["title"]}, source_url=url)
-    return cache.cached("places:wikivoyage", {"page": page, "v": 6}, go)
+    return cache.cached("places:wikivoyage", {"page": page, "v": 7}, go)
 
 
 _WLINK = re.compile(r"\[\[([^|\]#]+)(?:\|([^\]]+))?\]\]")
@@ -162,32 +174,64 @@ def destinations(text: str) -> list[dict]:
     return out
 
 
+def _section(text: str, title: str) -> str:
+    m = re.search(rf"==\s*{title}\s*==(.*?)(?=\n==[^=]|\Z)", text, re.S | re.I)
+    return m.group(1) if m else ""
+
+
+def guide(name: str) -> dict:
+    """Stay districts, highlights and a stay centre for a stop, only from its Wikivoyage article.
+    {'found': False} when there is no article: callers say 'no guide article found', nothing is invented."""
+    w = wikivoyage(name)
+    if not w.ok:
+        return {"found": False, "url": w.source_url}
+    text = w.data.get("text", "")
+    areas = []
+    for line in _section(text, "Districts").splitlines():
+        m = _WLINK.search(line)
+        if m and line.lstrip().startswith(("*", "{{")) and ":" not in m.group(1):
+            rest = _WLINK.sub(lambda x: x.group(2) or x.group(1), re.sub(r"\{\{[^{}]*\}\}|'{2,3}", "", line[m.end():]))
+            areas.append([(m.group(2) or m.group(1)).strip(), rest.strip(" -\u2013\u2014:*|}").strip()[:200]])
+    items = w.data["items"]
+    sleep_pts = []
+    for i in items:
+        if i["kind"] == "sleep" and i.get("lat") and i.get("lon"):
+            try:
+                sleep_pts.append((float(i["lat"]), float(i["lon"])))
+            except ValueError:
+                pass
+    center = [sum(p[0] for p in sleep_pts) / len(sleep_pts), sum(p[1] for p in sleep_pts) / len(sleep_pts)] if sleep_pts else None
+    hl = [i["name"] for i in items if i["kind"] in ("see", "do")][:5]
+    return {"found": True, "url": w.source_url, "areas": areas[:5], "highlights": hl, "stay_center": center}
+
+
 def _go_next(text: str) -> list[str]:
     m = re.search(r"==\s*Go next\s*==(.*?)(?:\n==[^=]|\Z)", text, re.S)
     return re.findall(r"\[\[([^|\]#]+)", m.group(1)) if m else []
 
 
-def stop_places(stop: dict, n: int = 8) -> dict:
-    """{'veg': [...], 'nightlife': [...], 'sights': [...], 'sources': [...], 'ok': bool} for one stop."""
+def stop_places(stop: dict, diets: tuple = (), n: int = 8) -> dict:
+    """{'diet': {pref: [...]}, 'nightlife': [...], 'sights': [...], 'sources': [...], 'ok': bool} for one stop."""
     lat, lon = (stop.get("stay_center") or [stop["lat"], stop["lon"]])
-    ov = overpass(lat, lon, 8000 if stop.get("access") else 5000)
+    ov = overpass(lat, lon, 8000 if stop.get("access") else 5000, diets)
     pages = stop.get("wikivoyage") or [stop["name"]]
     wvs = [wikivoyage(pg) for pg in ([pages] if isinstance(pages, str) else pages)]
     wv = next((w for w in wvs if w.ok), wvs[0])
     sights = []
     allitems = [i for w in wvs if w.ok for i in w.data["items"]]
     items = sorted([i for i in allitems if i["kind"] in ("see", "do")], key=lambda i: i["kind"] != "see")
-    wv_veg = [{"name": i["name"], "kind": "veg (Wikivoyage)", "blurb": i["blurb"], "src": "wikivoyage"}
-              for i in allitems if i["kind"] == "eat" and i.get("veg")]
+    wv_diet = {d: [{"name": i["name"], "kind": f"{d} (Wikivoyage)", "blurb": i["blurb"], "src": "wikivoyage"}
+                   for i in allitems if i["kind"] == "eat" and re.search(DIETS[d][1], i.get("text", ""), re.I)]
+               for d in diets}
     wv_drink = [{"name": i["name"], "kind": "bar (Wikivoyage)", "blurb": i["blurb"], "src": "wikivoyage"}
                 for i in allitems if i["kind"] == "drink" and not i.get("adult")]
     sights += [{"name": i["name"], "kind": i["kind"], "blurb": i["blurb"], "src": "wikivoyage"} for i in items]
     if ov.ok:
         names = {s["name"].lower() for s in sights}
         sights += [dict(s, src="osm") for s in ov.data["sights"] if s["name"].lower() not in names]
-    veg = (ov.data["veg"] if ov.ok else []) or wv_veg
+    diet = {d: ((ov.data["diet"].get(d) if ov.ok else []) or wv_diet[d])[:n] for d in diets}
     night = (ov.data["nightlife"] if ov.ok else []) or wv_drink
-    return {"veg": veg[:n], "nightlife": night[:n],
+    return {"diet": diet, "nightlife": night[:n],
             "sights": sights[:n], "ok": ov.ok or wv.ok, "lead": wv.data["lead"] if wv.ok else "",
             "sources": [{"label": "OpenStreetMap Overpass", "ok": ov.ok, "url": ov.source_url, "error": ov.error,
                          "fetched_at": ov.fetched_at},

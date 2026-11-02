@@ -45,7 +45,7 @@ def geocode(q: str) -> Result:
 
 def stay_bbox(city: str, country: str, area: str | None, lat: float, lon: float,
               center: list | None = None) -> tuple[float, float, float, float]:
-    """(ne_lat, ne_lon, sw_lat, sw_lon). A curated `center` (places.json stay_center) wins; small places
+    """(ne_lat, ne_lon, sw_lat, sw_lon). A `center` derived from the Wikivoyage Sleep listings wins; small places
     use their own Nominatim bbox; big cities are narrowed to ~4 km around the preferred area."""
     d = 0.035
     if center:

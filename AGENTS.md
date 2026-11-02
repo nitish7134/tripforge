@@ -23,6 +23,6 @@ Playwright needs a browser: `playwright install chromium`, or set `--browser hea
 - Write every trip into `trips/<slug>/` (see `TRIPS.md`); never scatter files elsewhere. Trips are gitignored; commit only sanitised examples.
 - One trip = one folder: `brief.yaml` (inputs), `notes.md` (decisions, constraints, open questions), `out/`, `evidence/`.
 - Commit trips on a branch and open a PR; `main` is protected.
-- Keep example data (Thailand ground fares, curated places, airline-name fixes) in `src/tripforge/data/` only; the tool must stay destination- and traveller-agnostic. No currency, home airport, spend rate or country hint may be hardcoded in code or templates (`tests/test_no_bias.py` enforces it). Defaults come from the brief.
+- Read [docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md) first. No data files under `src/`; fetch strategy, not data. The tool must stay destination- and traveller-agnostic. No currency, home airport, spend rate or country hint may be hardcoded in code or templates (`tests/test_no_bias.py` enforces it). Defaults come from the brief.
 - Tests: `pytest -q` (parser fixtures in `tests/fixtures`). Add a fixture when a scraper changes.
 - Never add paid API keys as hard requirements. Optional keys are read from env (`SERPAPI_KEY`).

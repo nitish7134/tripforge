@@ -55,13 +55,19 @@ tripforge ships no travel data. `docs/FETCH_STRATEGY.md` lists every piece of in
 | Nearest airports | OurAirports CSV (cached in `cache/`, refreshed monthly); stops without an airport within 40 km get the cheapest of up to 3 nearby airports plus a ground row |
 | Flights | `fli` (browserless Google Flights in your trip currency and home-country market, nonstop, flight numbers); Playwright page fallback when fli is empty twice |
 | Stays | `pyairbnb` (bbox, 10+ reviews, 4.6+, sorted by price); Playwright fallback |
-| Ground legs | `src/tripforge/data/ground.json` table (Thailand examples), else a distance heuristic (road 60 km/h, ferry 30 km/h, USD/km bands converted to your currency via frankfurter.app), always labelled indicative |
+| Ground legs | OSRM routing for mode and duration, a live 12Go read for the fare floor (else "fare unavailable" plus the link), Wikivoyage "Get in" for a rail note. A heuristic may give duration, never money |
 | Places | Wikivoyage See/Do/Eat/Drink listings (with fees), OSM Overpass for veg food and nightlife when the public instance answers |
-| Events | Computed full-moon dates, Wikivoyage and Wikipedia festival mentions in the window |
+| Events | Public holidays for the home country and each destination (Nager.Date), Wikivoyage and Wikipedia festival mentions; moon-dated events only when a stop's guide mentions one |
 | Visa | Wikipedia "Visa requirements for <Demonym> citizens" (live via the MediaWiki API, passport and destination resolved from Wikidata ISO codes; cached 30 days; shows status, stay, revision date, source link). Skipped for domestic trips and for the passport's own country. Passport defaults to the home airport's country (`--passport` / `passport:` override) |
-| Advisory, climate, FX | US State Dept RSS, Sunshine Atlas, frankfurter.app |
+| Advisory | By passport: GB FCDO, US State Dept, CA travel.gc.ca; other passports get FCDO + US labelled third-country |
+| Climate | Open-Meteo archive normals for any lat/lon (trip month, 5-year average) with a computed seasonal warning |
+| FX | frankfurter.app, only when the destination currency differs |
 
-`data/places.json` holds curated example entries (areas, highlights, stay centres). They enrich known cities; they are not required.
+Stay districts, highlights and the stay centre come from each stop's Wikivoyage article (Districts, Sleep, See, Do). No curated data ships in `src/`.
+
+## Fetch strategy, not data
+
+The repo defines WHAT to fetch and HOW, never the answers: no per-pair fares, no curated cities, no currency or airport defaults. See [docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md) for the section-by-section table (when shown, source, fallback).
 
 Cache: `cache/tripforge.db`, TTL flights 8h, stays 24h, places/climate 7d, fx 24h. Every row keeps `fetched_at`; `--no-cache` bypasses it.
 
@@ -76,7 +82,9 @@ Your own trips are personal: `trips/` is gitignored except `trips/example-thaila
 ## Limitations
 
 - Nonstop flights only; long-haul trips without a nonstop show unavailable flight legs.
-- Ground heuristic does not know about trains or water crossings beyond an "island" name/type check.
+- One-stop flights are not implemented (fli is queried nonstop only); hops short enough for road or ferry become ground legs.
+- Ground fares come from a live 12Go read, which often returns nothing to a plain HTTP client; the plan then says "fare unavailable" and links the page. Rail is a note only.
+- AU and other passports without an integrated advisory source get the UK and US advisories, labelled third-country.
 - Overpass is often slow or down; Wikivoyage fills in.
 - Menu vibe fit is a keyword count in the Wikivoyage article, capped per pref.
 - Visa data is community-maintained Wikipedia text; the plan always says to verify with the embassy. If Wikipedia cannot be read the cell says unavailable and links the article.

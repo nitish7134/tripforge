@@ -6,23 +6,13 @@ including the flight number (carrier code + number) that fli exposes on every le
 """
 from __future__ import annotations
 
-import json
 import time
 import urllib.parse
-from pathlib import Path
 
 from .. import money
 
 from .common import Result, fail
 
-
-
-def _airline_fix() -> dict:
-    """Optional corrections for carrier names fli's enum gets wrong: data/airlines.json (enrichment only)."""
-    try:
-        return json.loads((Path(__file__).resolve().parent.parent / "data" / "airlines.json").read_text())["names"]
-    except Exception:  # noqa: BLE001
-        return {}
 
 
 def _hm(t) -> str:
@@ -44,7 +34,7 @@ def to_rows(results, orig: str, dest: str, currency: str) -> list[dict]:
         dep, arr = lg.departure_datetime, lg.arrival_datetime
         price = int(round(res.price)) if res.price is not None and (res.currency in (None, currency)) else None
         out.append({
-            "airline": _airline_fix().get(code) or getattr(lg.airline, "value", code), "aircraft": lg.aircraft or "",
+            "airline": getattr(lg.airline, "value", code), "aircraft": lg.aircraft or "",
             "flight": fno, "from": lg.departure_airport.name.lstrip("_"), "to": lg.arrival_airport.name.lstrip("_"),
             "dep": _hm(dep), "arr": _hm(arr), "next_day": arr.date() > dep.date(),
             "duration_min": res.duration or lg.duration,

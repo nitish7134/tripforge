@@ -18,7 +18,7 @@ from .fetchers.common import Result
 
 HOUR = 3600
 TTL = {"flights": 8 * HOUR, "stays": 24 * HOUR, "places": 7 * 24 * HOUR, "climate": 7 * 24 * HOUR,
-       "fx": 24 * HOUR, "geo": 30 * 24 * HOUR, "visa": 30 * 24 * HOUR, "community": 24 * HOUR}
+       "fx": 24 * HOUR, "ground": 7 * 24 * HOUR, "holidays": 30 * 24 * HOUR, "geo": 30 * 24 * HOUR, "visa": 30 * 24 * HOUR, "community": 24 * HOUR}
 
 _lock = threading.Lock()
 _state = {"enabled": True, "path": None, "hits": 0, "misses": 0}
