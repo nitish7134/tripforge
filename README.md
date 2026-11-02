@@ -51,7 +51,8 @@ CLI flags (`--from`, `--stops`, `--start`, `--end-airport`, `--prefs`, `--meal-r
 | Ground legs | `src/tripforge/data/ground.json` table (Thailand examples), else a distance heuristic (road 60 km/h, ferry 30 km/h, INR/km bands), always labelled indicative |
 | Places | Wikivoyage See/Do/Eat/Drink listings (with fees), OSM Overpass for veg food and nightlife when the public instance answers |
 | Events | Computed full-moon dates, Wikivoyage and Wikipedia festival mentions in the window |
-| Visa, advisory, climate, FX | static table, US State Dept RSS, Sunshine Atlas, frankfurter.app |
+| Visa | Wikipedia "Visa requirements for <Demonym> citizens" (live via the MediaWiki API, passport and destination resolved from Wikidata ISO codes; cached 30 days; shows status, stay, revision date, source link). Skipped for domestic trips and for the passport's own country. Passport defaults to the home airport's country (`--passport` / `passport:` override) |
+| Advisory, climate, FX | US State Dept RSS, Sunshine Atlas, frankfurter.app |
 
 `data/places.json` holds curated example entries (areas, highlights, stay centres). They enrich known cities; they are not required.
 
@@ -70,7 +71,7 @@ Your own trips are personal: `trips/` is gitignored except `trips/example-thaila
 - Ground heuristic does not know about trains or water crossings beyond an "island" name/type check.
 - Overpass is often slow or down; Wikivoyage fills in.
 - Menu vibe fit is a keyword count in the Wikivoyage article, capped per pref.
-- Visa table covers a handful of countries for the Indian passport.
+- Visa data is community-maintained Wikipedia text; the plan always says to verify with the embassy. If Wikipedia cannot be read the cell says unavailable and links the article.
 - Scrapes page text for the browser fallbacks; Google/Airbnb layout changes can break those parsers (`tests/` has fixtures).
 
 ## Trips folder and the planner agent

@@ -154,8 +154,8 @@ a{color:var(--pur)}
 
 <h2>Before you go</h2>
 <div class="grid">
-<div class="card"><h3 style="--c:#2A9D8F">Visa ({{ m.passport }} passport)</h3>
-{% for cc, v in plan.visa.items() %}<p><b>{{ plan.countries[cc] }}:</b> {% if v.status %}{{ v.status }}. <a href="{{ v.apply }}">Official link</a>. <span class="est">{{ v.verify }}</span>{% else %}unavailable. {{ v.error }}{% endif %}</p>{% endfor %}</div>
+{% if plan.visa %}<div class="card"><h3 style="--c:#2A9D8F">Visa ({{ m.passport }} passport)</h3>
+{% for cc, v in plan.visa.items() %}<p><b>{{ plan.countries[cc] }}:</b> {% if v.status %}{{ v.status }}{% if v.stay %}, stay {{ v.stay }}{% endif %}. {% if v.notes %}{{ v.notes }} {% endif %}<a href="{{ v.source }}">Wikipedia</a>{% if v.revision_ts %}, revision of {{ v.revision_ts[:10] }}{% endif %}. <span class="est">{{ v.verify }}</span>{% else %}unavailable (could not read Wikipedia). <a href="{{ v.source }}">Open the article</a>.{% endif %}</p>{% endfor %}</div>{% endif %}
 <div class="card"><h3 style="--c:#E63946">Safety advisory (US State Dept)</h3>
 {% for cc, a in plan.advisory.items() %}<p><b>{{ plan.countries[cc] }}:</b> {% if a.title %}<span class="lvl l{{ a.level or 1 }}">Level {{ a.level }}</span> {{ a.title.split(" - ",1)[-1] }} <a href="{{ a.url }}">source</a>{% else %}unavailable. {{ a.error }}{% endif %}</p>{% endfor %}</div>
 <div class="card"><h3 style="--c:#7B2CBF">Climate in {{ first.start|day }}'s month</h3>

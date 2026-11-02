@@ -1,0 +1,22 @@
+{| class="wikitable"
+!Country
+!Visa requirement
+!Allowed stay
+!Notes
+|- 
+| {{flag|Brazil}}
+| {{yes|Visa not required}}<ref>{{Timatic|nationality=PT|destination=BR}}</ref>
+| 90 days
+|
+* [[Portuguese citizens]] benefiting from equal citizenship status are eligible for regular Brazilian identity cards. They enjoy a reciprocal special regimen in recognition of [[Brazil-Portugal relations|Brazil and Portugal's special relationship]].
+* the Portuguese people have a special status in Brazil Due to a treaty, citizens of Portugal permanently residing in Brazil may request equal civil rights, and after three years of residence also political rights, such as voting and being elected, as if they were naturalized citizens of Brazil.
+* Extension of stay is possible.
+| {{yes|✓}}
+|-
+| {{flag|Namibia}}
+| {{Optional|eVisa / Visa on arrival}}<ref>{{cite web | url=https://eservices.mhaiss.gov.na/ | title=Namibia eVisa}}</ref><ref>{{Timatic|nationality=PT|destination=NA}}</ref>
+| 90 days
+|
+* Can be obtained online or on arrival for a fee of N$1,600 (approximately €82 / US$88).<ref>{{cite web | url=https://visasnews.com/en/namibia-now-imposes-visa-requirements-on-33-nationalities/ | title=Namibia imposes visa requirements on 33 nationalities| date=April 2025}}</ref>
+| {{no|X}}
+|}

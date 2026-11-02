@@ -1,4 +1,4 @@
-"""Keyless fetchers: FX, advisory, climate, weather, visa (static)."""
+"""Keyless fetchers: FX, advisory, climate, weather. Visa lives in visa.py."""
 from __future__ import annotations
 
 import datetime as dt
@@ -96,15 +96,6 @@ def fetch_weather(lat: float, lon: float, start: str, end: str, evid: Path, tag:
         return Result(ok=bool(rows), data=rows, source_url=url, screenshot_path=str(evid / f"weather_{tag}.json"))
     except Exception as e:  # noqa: BLE001
         return fail(str(e), url)
-
-
-def visa_for(passport: str, cc: str) -> Result:
-    table = load("visa.json")
-    e = table.get(passport, {}).get(cc)
-    if not e:
-        return fail(f"no static visa entry for passport {passport} -> {cc}; check the embassy site")
-    return Result(ok=True, data={"status": e["status"], "apply": e["url"], "verify": "Static table, verify with the official source before booking."},
-                  source_url=e["source"])
 
 
 def fetch_currency(cc: str) -> Result:
