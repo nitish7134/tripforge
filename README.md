@@ -43,6 +43,10 @@ CLI flags (`--from`, `--stops`, `--start`, `--end-airport`, `--prefs`, `--meal-r
 
 **Defaults come from your brief; the tool has no home country.** Currency falls back to the home airport's country (Wikidata), money is formatted from an ISO 4217 table, and daily spend is only shown when you give `meal_rate` / `party_rate`. Country-specific hints (visa rules, advisories) come from fetched sources, never from the code.
 
+## Fetch strategy, not data
+
+tripforge ships no travel data. `docs/FETCH_STRATEGY.md` lists every piece of information a plan needs, which source answers it for the trip in hand, the fallback, and how it is tagged. Heuristics may estimate time, never money.
+
 ## How it resolves any destination
 
 | Piece | Source (all keyless) |
