@@ -19,7 +19,9 @@ from .fetchers import flights_fli as FL
 from .fetchers import stays_pyairbnb as SP
 from .fetchers.common import Result, fail
 from .fetchers.geo import stay_bbox
-from .fetchers.misc import fetch_advisories, fetch_climate, fetch_fx, fetch_weather
+from .fetchers.advisory import fetch_advisories
+from .fetchers.climate import fetch_normals
+from .fetchers.misc import fetch_fx, fetch_weather
 from .fetchers.visa import visa_requirement
 from .fetchers.photos import fetch_photos
 from .fetchers.places import stop_places
@@ -31,7 +33,7 @@ console = Console(stderr=True)
 # the brief (currency falls back to the home airport's country). Unit-less constants only.
 DEFAULTS = {"people": 2, "budget_night": None, "prefs": [], "currency": None, "passport": None,
             "meal_rate": None, "meals_per_day": 3, "party_rate": None, "party_share": 0.5,
-            "transport_day": None, "hostels": False, "flights_backend": "auto", "stays_backend": "auto",
+            "transport_day": None, "hostels": False, "max_ground_hours": 6, "flights_backend": "auto", "stays_backend": "auto",
             "browser": "headless", "alt_start": [], "end_airport": None, "country": ""}
 
 
@@ -48,7 +50,7 @@ def _fmt_ts(ts: float) -> str:
 
 
 # ---------------------------------------------------------------- transitions
-def transitions(home: dict, stops: list[dict], start: str, end_ap: dict) -> dict:
+def transitions(home: dict, stops: list[dict], start: str, end_ap: dict, max_km: float = ground.GROUND_MAX_KM) -> dict:
     """Ordered hops: fly (with candidate arrival airports) or ground. Dates are per hop."""
     d = _d(start)
     hops, out_stops = [], []
@@ -56,10 +58,10 @@ def transitions(home: dict, stops: list[dict], start: str, end_ap: dict) -> dict
     for i, s in enumerate(stops):
         cin, cout = d, d + dt.timedelta(days=s["nights"])
         out_stops.append({**s, "checkin": cin.isoformat(), "checkout": cout.isoformat()})
-        hops.append(_hop(prev, i, s, d))
+        hops.append(_hop(prev, i, s, d, max_km=max_km))
         prev = {"kind": "stop", "pt": s, "name": s["name"], "idx": i}
         d = cout
-    hops.append(_hop(prev, None, {"home": True, **end_ap}, d, end_home=home))
+    hops.append(_hop(prev, None, {"home": True, **end_ap}, d, end_home=home, max_km=max_km))
     return {"start": start, "end": d.isoformat(), "nights": sum(s["nights"] for s in stops), "hops": hops,
             "stops": out_stops}
 
@@ -70,8 +72,12 @@ def _arr_airports(s: dict) -> list[dict]:
     return [main] + list(s.get("alt_airports") or [])
 
 
-def _hop(prev: dict, to_idx, s: dict, date: dt.date, end_home: dict | None = None) -> dict:
+def _hop(prev: dict, to_idx, s: dict, date: dt.date, end_home: dict | None = None,
+         max_km: float = ground.GROUND_MAX_KM) -> dict:
     h = {"date": date.isoformat(), "from_name": prev["name"], "to_idx": to_idx}
+    if end_home is not None and prev["kind"] == "stop" and ground.needs_ground(prev["pt"], end_home, max_km):
+        h.update(kind="ground", a=prev["pt"], b=end_home, to_name="home")  # close enough to go home by road
+        return h
     if end_home is not None:  # the way home: optional ground to the end airport, then fly
         h.update(kind="fly", to_name="home", dest=[{"iata": end_home["iata"], "name": end_home["name"],
                                                     "lat": end_home["lat"], "lon": end_home["lon"], "km": 0}])
@@ -84,7 +90,7 @@ def _hop(prev: dict, to_idx, s: dict, date: dt.date, end_home: dict | None = Non
             h["orig"] = [prev["pt"]]
         return h
     h["to_name"] = s["name"]
-    if prev["kind"] == "stop" and ground.needs_ground(prev["pt"], s):
+    if ground.needs_ground(prev["pt"], s, max_km):
         h.update(kind="ground", a=prev["pt"], b=s)
         return h
     h["kind"] = "fly"
@@ -226,6 +232,10 @@ def build_days(opt: dict, places: dict, prefs: list[str]) -> list[dict]:
                 extra.append(f"night out: {night[(k // 2) % len(night)]}")
             out.append({"date": (d0 + dt.timedelta(days=k)).strftime("%a %d %b"), "place": s["name"], "text": text,
                         "extra": "; ".join(extra)})
+    last = legs[-1] if legs else None
+    if last and last["kind"] == "ground":
+        return out + [{"date": _d(opt["end"]).strftime("%a %d %b"), "place": "Return", "extra": "",
+                       "text": f"Head home by {last['ground']['mode']} (about {last['ground']['hours'][0]}h)."}]
     last = next((lg for lg in reversed(legs) if lg["kind"] == "flight"), None)
     p = last["rows"][0] if last and last["rows"] else None
     out.append({"date": _d(opt["end"]).strftime("%a %d %b"), "place": "Return", "extra": "",
@@ -290,7 +300,7 @@ def run_plan(cfg: dict, evid: Path) -> dict:
     end_pt = {"iata": end_ap["iata"], "name": end_ap["city"] or end_ap["name"], "lat": end_ap["lat"],
               "lon": end_ap["lon"]}
     starts = [str(cfg["start"]), *[str(x) for x in (cfg.get("alt_start") or [])]]
-    options = [transitions(home, stops, s, end_pt) for s in starts]
+    options = [transitions(home, stops, s, end_pt, float(cfg["max_ground_hours"]) * 60) for s in starts]
     evid.mkdir(parents=True, exist_ok=True)
     photo_dir = cache.repo_root() / "cache" / "photos"
     photo_dir.mkdir(parents=True, exist_ok=True)
@@ -308,10 +318,11 @@ def run_plan(cfg: dict, evid: Path) -> dict:
     with ThreadPoolExecutor(max_workers=12) as ex:
         pl_f = {s["name"]: ex.submit(stop_places, s) for s in stops}
         cur_f = {cc: ex.submit(money.country_currency, cc) for cc in ccs}
-        adv_f = ex.submit(fetch_advisories, cnames, evid)
-        clim_f = {s["name"]: ex.submit(lambda s=s: cache.cached("climate", {"i": s["iata"], "m": _d(starts[0]).month},
-                                                                lambda: fetch_climate(s["iata"], _d(starts[0]).month, evid)))
-                  for s in stops}
+        foreign = {cc: n for cc, n in cnames.items() if cc != home_ap["cc"]}  # domestic: nothing to advise on
+        adv_f = ex.submit(fetch_advisories, cfg["passport"], foreign, evid) if foreign else None
+        clim_f = {s["name"]: ex.submit(fetch_normals, s["lat"], s["lon"], _d(starts[0]).month) for s in stops}
+        hol_win = (_d(starts[0]), _d(options[0]["end"]))
+        hol_f = {cc: ex.submit(events.public_holidays, cc, *hol_win) for cc in sorted({home_ap["cc"], *ccs})}
         wx_f = {s["name"]: ex.submit(fetch_weather, s["lat"], s["lon"], starts[0], options[0]["end"], evid, s["name"])
                 for s in stops}
         ph_f = {s["name"]: ex.submit(fetch_photos, f"{s['name']} {s['country']}", 2, photo_dir) for s in stops}
@@ -336,7 +347,8 @@ def run_plan(cfg: dict, evid: Path) -> dict:
         console.print(f"  flights+stays done in {time.time() - t0:.0f}s")
         places = {k: f.result() for k, f in pl_f.items()}
         curr = {k: f.result() for k, f in cur_f.items()}
-        adv = adv_f.result()
+        adv = adv_f.result() if adv_f else {}
+        hol = {cc: f.result() for cc, f in hol_f.items()}
         clim = {k: f.result() for k, f in clim_f.items()}
         wx = {k: f.result() for k, f in wx_f.items()}
         photos = {k: f.result() for k, f in ph_f.items()}
@@ -453,10 +465,34 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                        "error": src["error"], "cached": False})
     win_s, win_e = _d(starts[0]), _d(options[0]["end"])
     ev_rows = events.lunar_rows(win_s, win_e, [(places[s["name"]].get("lead") or "") for s in stops])
+    for cc, res in hol.items():
+        ev_rows += events.holiday_rows(res, AP.countries().get(cc, cc), "home" if cc == home_ap["cc"] else "destination")
+    ev_rows.sort(key=lambda r: r.get("date") or "9999")
+    for cc, r in hol.items():
+        ev.append({"label": f"public holidays {cc}", "ok": r.ok, "url": r.source_url, "file": None,
+                   "fetched_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(r.fetched_at)), "error": r.error,
+                   "cached": bool(getattr(r, "cached", False))})
+
+    # ---- sections that do not apply to this trip, listed once so the reader knows they were considered
+    na = []
+    domestic = all(cc == home_ap["cc"] for cc in ccs)
+    if domestic:
+        na += ["visa: domestic trip (every stop is in the home country)",
+               "safety advisory: domestic trip", "FX: domestic trip, one currency"]
+    else:
+        if not visa:
+            na.append("visa: every destination is the passport's own country")
+        if not fx:
+            na.append("FX: the destination uses the same currency as the trip")
+    all_ground = all(lg["kind"] == "ground" for lg in out_opts[0]["legs"]) if out_opts and out_opts[0]["legs"] else False
+    if all_ground:
+        na.append(f"flights: every hop is within {cfg['max_ground_hours']} h by road, so ground legs replace flights "
+                  "(a rental car may suit this route; check local rental sites)")
     backends = {"flights": sorted({getattr(v, "backend", "none") for v in flights.values()}),
                 "stays": sorted({getattr(v, "backend", "none") for v in stays.values()})}
     return {
         "meta": {"home": home["iata"], "home_name": home["name"], "people": people, "budget_night": budget or None,
+                 "has_flights": any(lg["kind"] == "flight" for o in out_opts for lg in o["legs"]),
                  "prefs": prefs, "currency": currency, "budget_set": bool(budget), "passport": cfg["passport"],
                  "generated": time.strftime("%d %b %Y %H:%M"), "browser": cfg["browser"],
                  "title": " + ".join(s["name"] for s in stops), "end_airport": end_pt["iata"],
@@ -465,8 +501,10 @@ def run_plan(cfg: dict, evid: Path) -> dict:
         "options": out_opts,
         "events": ev_rows,
         "fx": {k: v.data for k, v in fx.items() if v.ok},
-        "advisory": {cc: (r.data | {"url": r.source_url}) if r.ok else {"error": r.error} for cc, r in adv.items()},
+        "advisory": {cc: (r.data | {"url": r.source_url}) if r.ok else {"error": r.error, "entries": (r.data or {}).get("entries", [])}
+                     for cc, r in adv.items()},
         "climate": {k: (r.data | {"url": r.source_url}) if r.ok else {"error": r.error} for k, r in clim.items()},
+        "not_applicable": na,
         "weather": {k: (r.data if r.ok else {"error": r.error}) for k, r in wx.items()},
         "visa": {cc: (r.data | {"source": r.source_url, "fetched": _fmt_ts(r.fetched_at)}) if r.ok
                  else {"error": r.error, "source": r.source_url} for cc, r in visa.items()},

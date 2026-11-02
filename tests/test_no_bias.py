@@ -64,6 +64,7 @@ def test_no_hardcoded_traveller_in_source():
     """INR / BLR / Thailand may live in example data and tests only. money.py's ISO symbol table is the one
     place a currency code is named (INR is a major currency, not a default)."""
     bad = re.compile(r"\bINR\b|\bBLR\b|Thailand|Bangkok|Phuket|Bengaluru|Akasa|IndiGo|₹|TDAC|7 ?kg", re.I)
+    bad_exact = re.compile(r"\bIST\b|Full Moon|US State Department used as default")
     hits = []
     for p in SRC.rglob("*"):
         if p.suffix not in {".py", ".j2", ".md", ".txt"} or "data" in p.relative_to(SRC).parts:
@@ -71,6 +72,8 @@ def test_no_hardcoded_traveller_in_source():
         for i, line in enumerate(p.read_text().splitlines(), 1):
             if p.name == "money.py" and line.startswith('    "USD"'):
                 continue  # the symbol table
+            if bad_exact.search(line):
+                hits.append(f"{p.relative_to(SRC)}:{i}: {line.strip()}")
             if bad.search(line):
                 hits.append(f"{p.relative_to(SRC)}:{i}: {line.strip()}")
     assert not hits, "\n".join(hits)
@@ -80,3 +83,23 @@ def test_no_data_files_under_src():
     """Fetch strategy, not data: src/ ships no JSON/YAML/CSV data (no place names, no prices)."""
     found = [str(p.relative_to(SRC)) for p in SRC.rglob("*") if p.suffix in {".json", ".yaml", ".yml", ".csv"}]
     assert not found, f"data files under src/: {found}"
+
+
+def test_advisory_source_follows_passport():
+    from tripforge.fetchers import advisory
+    assert advisory.SOURCES["GB"] == ["FCDO"] and advisory.SOURCES["US"] == ["US"] and advisory.SOURCES["CA"] == ["CA"]
+    assert "AU" not in advisory.SOURCES and advisory.THIRD_COUNTRY == ["FCDO", "US"]
+
+
+def test_climate_warning_is_derived_from_numbers():
+    from tripforge.fetchers.climate import warning
+    assert "wet season: 18 rain days" in warning({"rain_days": 18, "day_high_c": 30, "night_low_c": 22})
+    assert warning({"rain_days": 2, "day_high_c": 37, "night_low_c": 1}).startswith("mostly dry: 2 rain days; very hot")
+
+
+def test_moon_events_only_when_guide_mentions_them():
+    import datetime as dt
+    from tripforge import events
+    a, b = dt.date(2026, 12, 15), dt.date(2027, 1, 5)
+    assert events.lunar_rows(a, b, ["a quiet town with beaches"]) == []
+    assert events.lunar_rows(a, b, ["famous monthly full moon party"])
