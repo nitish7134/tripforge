@@ -32,6 +32,7 @@ def resolve(name: str, country_hint: str = "", iata: str | None = None) -> dict:
     gd = guide(s["name"])
     s.update(guide_found=gd["found"], guide_url=gd.get("url"), areas=gd.get("areas", []),
              highlights=gd.get("highlights", []), stay_center=gd.get("stay_center"))
+    s["lat"], s["lon"] = town_point(d.get("class", ""), s["lat"], s["lon"], gd.get("stay_center"))
     near = AP.nearest(s["lat"], s["lon"], k=4)
     if iata:
         s["iata"] = iata.upper()
@@ -41,11 +42,33 @@ def resolve(name: str, country_hint: str = "", iata: str | None = None) -> dict:
     pkm = round(AP.km(s["lat"], s["lon"], primary["lat"], primary["lon"]))
     s.update(iata=primary["iata"], airport=primary["name"], airport_city=primary["city"] or primary["name"],
              airport_km=pkm, airport_lat=primary["lat"], airport_lon=primary["lon"])
-    # Alternatives are only worth pricing when the stop has no airport of its own.
-    s["alt_airports"] = [] if pkm <= OWN_AIRPORT_KM else [
-        {"iata": a["iata"], "name": a["name"], "city": a["city"], "km": a["km"], "lat": a["lat"], "lon": a["lon"]}
-        for a in near if a["iata"] != primary["iata"] and a["km"] <= 200][:2]
+    s["alt_airports"] = alt_airports(primary, pkm, near)
     return s
+
+
+# An administrative boundary's centroid can sit in the sea or the hills (tens of km from the nearest road),
+# which turns every road leg into a "ferry". Where the guide's Sleep listings cluster is the town.
+CENTROID_MAX_KM = 40
+
+
+def town_point(hit_class: str, lat: float, lon: float, center: list | None) -> tuple[float, float]:
+    """The point to route and search from: the Wikivoyage listings centre when the geocode is an area, else the hit."""
+    if hit_class == "boundary" and center and AP.km(lat, lon, center[0], center[1]) <= CENTROID_MAX_KM:
+        return float(center[0]), float(center[1])
+    return lat, lon
+
+
+# A city often has two airports close together (a downtown strip and the international hub) and OurAirports sizes
+# them alike, so no rule can guess which one the long-haul flights use: every airport this close is priced and
+# the cheapest flight-plus-transfer wins.
+TWIN_KM = 50
+
+
+def alt_airports(primary: dict, pkm: int, near: list[dict]) -> list[dict]:
+    """Other airports worth pricing: all within TWIN_KM, and up to 200 km when the stop has no airport of its own."""
+    far_ok = pkm > OWN_AIRPORT_KM
+    return [{"iata": a["iata"], "name": a["name"], "city": a["city"], "km": a["km"], "lat": a["lat"], "lon": a["lon"]}
+            for a in near if a["iata"] != primary["iata"] and (a["km"] <= TWIN_KM or (far_ok and a["km"] <= 200))][:2]
 
 
 def airport_point(a: dict) -> dict:

@@ -138,9 +138,13 @@ def fetch_flight(o: str, d: str, date: str, currency: str, backend: str, br_get,
         r2.backend = "none"  # type: ignore[attr-defined]
         return r2
     from .fetchers import flights as F
-    r = cache.cached("flights:browser", params, lambda: F.fetch_leg(br, o, d, date, currency, br.evid))
-    r.backend = "browser"  # type: ignore[attr-defined]
-    return r
+    r2 = cache.cached("flights:browser", params, lambda: F.fetch_leg(br, o, d, date, currency, br.evid))
+    r2.backend = "browser"  # type: ignore[attr-defined]
+    if not r2.ok and backend != "browser" and "no nonstop" in (r.error or ""):
+        # fli answered "no nonstop flights" and the browser then crashed: the fli verdict is the real one.
+        r.backend = "fli"  # type: ignore[attr-defined]
+        return r
+    return r2
 
 
 class LazyBrowser:
@@ -171,7 +175,7 @@ class LazyBrowser:
 def fetch_stay(s: dict, cin: str, cout: str, people: int, budget: int, currency: str, backend: str, br_get,
                room_type: str = "Entire home/apt") -> Result:
     params = {"name": s["name"], "cc": s["cc"], "cin": cin, "cout": cout, "p": people, "b": budget,
-              "ccy": currency, "rt": room_type, "v": 1}
+              "ccy": currency, "rt": room_type, "v": 2}
     if backend != "browser":
         def go():
             bb = stay_bbox(s["name"], s.get("country", ""), (s.get("areas") or [[None]])[0][0], s["lat"], s["lon"],
