@@ -13,7 +13,7 @@ Read `agents/PLANNER_PROMPT.md` and follow it. In short: take minimal input, thi
 uv venv && uv pip install -e .            # or: pip install -e .
 tripforge plan --from <IATA> --stops "CityA:2,CityB:3,CityC:5" --start 2026-12-24 \
   --people 2 --prefs veg,party --currency <ISO 4217> --trip my-trip
-# two worked briefs: trips/example-thailand (INR) and trips/example-lisbon-morocco (EUR)
+# worked briefs: trips/example-thailand (INR), trips/example-lisbon-morocco (EUR), trips/example-rajasthan-family (domestic, rail, 3 people)
 # outputs: trips/my-trip/out/{plan.pdf,plan.html,plan.png,plan.json}, trips/my-trip/evidence/
 ```
 Playwright needs a browser: `playwright install chromium`, or set `--browser headless` to use installed Google Chrome. If Google/Airbnb block the headless browser, use `--browser attach` (see README).

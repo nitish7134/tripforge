@@ -5,18 +5,34 @@ empty page returns ok=False so the caller can fall back to the Playwright fetche
 """
 from __future__ import annotations
 
+import json
+import math
 import re
 
 from .common import Result, fail
 from .stays import search_url
 
 _N = re.compile(r"(\d+)\s+night")
+_BEDS = re.compile(r"(\d+)\s+(?:double |single |queen |king |sofa )?beds?\b", re.I)
+
+
+def beds_of(x: dict) -> int | None:
+    """Bed count read from the card text (structuredContent); None when the card does not say."""
+    try:
+        txt = json.dumps(x.get("structuredContent") or {}, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return None
+    m = _BEDS.search(txt)
+    return int(m.group(1)) if m else None
 
 
 def to_rows(raw: list[dict], nights: int, cin: str, cout: str, adults: int, currency: str) -> list[dict]:
     host = "airbnb.com"  # the currency= parameter selects the display currency
     out = []
     for x in raw or []:
+        beds = beds_of(x)
+        if beds is not None and beds * 2 < adults:  # two guests per bed at most: too small for the party
+            continue
         unit = (x.get("price") or {}).get("unit") or {}
         amt = unit.get("discount") or unit.get("amount")
         if not amt:
@@ -36,7 +52,7 @@ def to_rows(raw: list[dict], nights: int, cin: str, cout: str, adults: int, curr
         out.append({
             "name": (x.get("name") or title or "Airbnb listing").strip(), "kind": title, "room_type": kind.strip(),
             "area": area.strip(), "rating": rating, "reviews": reviews, "total": round(total), "nights": n,
-            "per_night": round(total / max(n, 1)),
+            "per_night": round(total / max(n, 1)), "beds": beds,
             "badge": "Guest favourite" if any("GUEST_FAVORITE" in str(b).upper() for b in badges)
                      else ("Superhost" if any("SUPERHOST" in str(b).upper() for b in badges) else ""),
             "free_cancel": False,
@@ -70,7 +86,8 @@ def fetch_stay(bbox: tuple, slug: str, cin: str, cout: str, nights: int, adults:
         cursor = ""
         for _page in range(max_pages):
             res = search.get(key, cursor, cin, cout, ne_lat, ne_lon, sw_lat, sw_lon, 13, currency, room_type, 0,
-                             int(budget_night), [], False, adults, 0, 0, 0, 0, 0, "en", "", "")
+                             int(budget_night), [], False, adults, 0, 0, 0,
+                             math.ceil(adults / 2) if adults > 2 else 0, 0, "en", "", "")
             raw += standardize.from_search(res)
             cursor = (utils.get_nested_value(res, "data.presentation.staysSearch.results.paginationInfo", {}) or {}
                       ).get("nextPageCursor")

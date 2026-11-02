@@ -43,6 +43,22 @@ CLI flags (`--from`, `--stops`, `--start`, `--end-airport`, `--prefs`, `--meal-r
 
 **Defaults come from your brief; the tool has no home country.** Currency falls back to the home airport's country (Wikidata), money is formatted from an ISO 4217 table, and daily spend is only shown when you give `meal_rate` / `party_rate`. Country-specific hints (visa rules, advisories) come from fetched sources, never from the code.
 
+## Domestic family trip (rail-friendly)
+
+```yaml
+# trips/example-rajasthan-family/brief.yaml (sanitised): family of 3, January, round trip from a mid-country city
+destination: Rajasthan, India     # "Region, Country" is fine; resolved to a Wikivoyage article
+from: NAG
+people: 3
+pace: relaxed                     # 2 sights a day, no party/nightlife section unless prefs ask for it
+ground: {rail_ok: true, night_travel_ok: true, rail_max_hours: 26}
+flights: {max_total_hours_if_stop: 12}   # one-stop fallback when no nonstop exists
+stays: {guests: 3}                # entire place sized for the party; cost still split over `people`
+stops: "Jaipur:2,Jodhpur:2,Jaisalmer:2,Udaipur:2"
+```
+
+`tripforge menu --brief trips/example-rajasthan-family/brief.yaml` lists the region's candidate stops; `tripforge plan --brief ...` prices flights, shows a **rail row and a road row beside each flight row** (every rail and road row is tagged indicative; a rail fare is shown only if a page states it, otherwise "fare unavailable"), and says which option the totals use. India has a working rail adapter; other countries show the rail row as unavailable until an adapter is added in `fetchers/rail.py`.
+
 ## Fetch strategy, not data
 
 tripforge ships no travel data. `docs/FETCH_STRATEGY.md` lists every piece of information a plan needs, which source answers it for the trip in hand, the fallback, and how it is tagged. Heuristics may estimate time, never money.
@@ -55,6 +71,7 @@ tripforge ships no travel data. `docs/FETCH_STRATEGY.md` lists every piece of in
 | Nearest airports | OurAirports CSV (cached in `cache/`, refreshed monthly); stops without an airport within 40 km get the cheapest of up to 3 nearby airports plus a ground row |
 | Flights | `fli` (browserless Google Flights in your trip currency and home-country market, nonstop, flight numbers); Playwright page fallback when fli is empty twice |
 | Stays | `pyairbnb` (bbox, 10+ reviews, 4.6+, sorted by price); Playwright fallback |
+| Rail | per-country adapter (India: erail.in timetable, station codes from Wikipedia infoboxes) and the stop's Wikivoyage "By train" text; honours `ground.night_travel_ok`, `ground.rail_max_hours` and `pace`; indicative, no fares invented |
 | Ground legs | OSRM routing for mode and duration, a live 12Go read for the fare floor (else "fare unavailable" plus the link), Wikivoyage "Get in" for a rail note. A heuristic may give duration, never money |
 | Places | Wikivoyage See/Do/Eat/Drink listings (with fees), OSM Overpass for veg food and nightlife when the public instance answers |
 | Events | Public holidays for the home country and each destination (Nager.Date), Wikivoyage and Wikipedia festival mentions; moon-dated events only when a stop's guide mentions one |
@@ -82,7 +99,8 @@ Your own trips are personal: `trips/` is gitignored except `trips/example-thaila
 ## Limitations
 
 - Nonstop flights only; long-haul trips without a nonstop show unavailable flight legs.
-- One-stop flights are not implemented (fli is queried nonstop only); hops short enough for road or ferry become ground legs.
+- Flights are nonstop unless the brief sets `flights.max_total_hours_if_stop`, which adds a one-stop fallback for legs with no nonstop; hops short enough for road or ferry become ground legs.
+- Rail: one working adapter (India); fares are never estimated; only direct trains are read (no connection search).
 - Ground fares come from a live 12Go read, which often returns nothing to a plain HTTP client; the plan then says "fare unavailable" and links the page. Rail is a note only.
 - AU and other passports without an integrated advisory source get the UK and US advisories, labelled third-country.
 - Overpass is often slow or down; Wikivoyage fills in.

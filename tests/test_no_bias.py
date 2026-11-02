@@ -64,7 +64,8 @@ def test_no_hardcoded_traveller_in_source():
     """INR / BLR / Thailand may live in example data and tests only. money.py's ISO symbol table is the one
     place a currency code is named (INR is a major currency, not a default)."""
     bad = re.compile(r"\bINR\b|\bBLR\b|Thailand|Bangkok|Phuket|Bengaluru|Akasa|IndiGo|₹|TDAC|7 ?kg", re.I)
-    bad_exact = re.compile(r"\bIST\b|Full Moon|US State Department used as default")
+    bad_exact = re.compile(r"\bIST\b|Full Moon|US State Department used as default|two sharing|two friends|Suparth"
+                           r"|nonstop flights only|nonstop-only|Rs\.? ?\d")
     hits = []
     for p in SRC.rglob("*"):
         if p.suffix not in {".py", ".j2", ".md", ".txt"} or "data" in p.relative_to(SRC).parts:

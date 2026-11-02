@@ -17,6 +17,7 @@ from pathlib import Path
 from . import cache, events, ground, money
 from .fetchers import airports as AP
 from .fetchers import flights_fli as FL
+from .fetchers.destination import resolve as resolve_destination
 from .fetchers.places import wikivoyage
 from .stops import StopError, resolve
 
@@ -73,7 +74,8 @@ def _candidate(d: dict, country: str, prefs: list[str], home: str, start: dt.dat
             "nights": nights, "musts": [{"name": m["name"], "fee": m.get("price") or "fee not listed",
                                          "blurb": m["blurb"]} for m in musts[:5]],
             "flight": fl, "access": acc, "url": wv.source_url,
-            "events": events.mentions(text, start, start + dt.timedelta(days=40), "wikivoyage", wv.source_url, 3),
+            "events": (events.section_mentions(text, start, start + dt.timedelta(days=40), "wikivoyage", wv.source_url, 3)
+                       + events.mentions(text, start, start + dt.timedelta(days=40), "wikivoyage", wv.source_url, 3))[:4],
             "full_moon_text": "full moon" in text.lower()}
 
 
@@ -100,7 +102,7 @@ def _route_cost(order: list[dict], home: str, ppl: int, currency: str) -> dict:
     stays = sum((c.get("stay_pn") or 0) * c["nights"] for c in order) / ppl
     return {"flights_pp": None if fl is None else round(fl), "ground_pp": round(g), "stays_pp": round(stays),
             "core_pp": None if fl is None else round(fl + g + stays),
-            "tag": "est (outbound live, return and hops estimated)" if fl is not None else "flights unavailable"}
+            "tag": "est (outbound live, return and hops estimated)" if fl is not None else "flights unavailable (rail, road or one-stop may serve the end legs; `plan` checks them)"}
 
 
 def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[Path, Path]:
@@ -120,7 +122,10 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
     meal = int(cfg["meal_rate"]) if cfg.get("meal_rate") is not None else None
     party = int(cfg["party_rate"]) if cfg.get("party_rate") is not None else None
     start, end = _window(cfg)
-    top = wikivoyage(dest)
+    resolved = resolve_destination(dest)
+    if not resolved.ok:
+        raise SystemExit(resolved.error)
+    top = wikivoyage(resolved.data["title"])
     if not top.ok:
         raise SystemExit(f"no Wikivoyage article for {dest}: {top.error}")
     allds = top.data["destinations"]
@@ -151,7 +156,8 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
             c["stay_pn"], c["stay_tag"] = med, ("est (median of live)" if med else "unavailable")
         c["worth"], c["skip"] = _verdict(c, prefs)
     moon = events.lunar_rows(start, end, ["full moon"] if any(c["full_moon_text"] for c in cands) else [])
-    fest = events.wikipedia_festivals(dest, start, end)
+    fest = events.wikipedia_festivals(resolved.data["title"], start, end)
+    region_ev = events.section_mentions(top.data.get("text", ""), start, end, "wikivoyage " + dest, top.source_url)
     # combos: pick k stops whose nights fit, ordered by a nearest-neighbour walk
     combos = []
     for k in (2, 3, 4):
@@ -191,7 +197,7 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
         spend = {"meals": days * 3 * meal, "party": (nights // 2) * party if wants_party else 0}
     data = {"currency": currency, "home": home, "destination": dest, "window": {"start": start.isoformat(), "end": end.isoformat()}, "prefs": prefs,
             "rates": {"meal_rate": meal, "party_rate": party}, "spend_pp_est": spend, "candidates": cands,
-            "combos": picks, "events": moon + (fest.data if fest.ok else []), "source": top.source_url}
+            "combos": picks, "events": moon + region_ev + (fest.data if fest.ok else []), "source": top.source_url}
     out_dir.mkdir(parents=True, exist_ok=True)
     js = out_dir / "menu.json"
     js.write_text(json.dumps(data, indent=1, ensure_ascii=False, default=str))
@@ -217,7 +223,7 @@ def _md(d: dict, home: str) -> str:
     for c in d["candidates"]:
         fl = c["flight"]
         get = (f"{fl['flight']} {home}->{c['iata']} {fl['dep']} {_money(fl['price'], M)} (live, nonstop)" if fl
-               else f"fly to {c['iata']}: no nonstop priced from {home} (unavailable)")
+               else f"fly to {c['iata']}: no nonstop priced from {home} (unavailable; `plan` also checks rail and one-stop)")
         if c["access"]:
             a = c["access"]
             get += f" + {a['mode']} {a['hours'][0]}-{a['hours'][1]}h {_money(a['amount'][0], M)}-{_money(a['amount'][1], M)} (est)" if a.get("amount") else f" + {a['mode']} {a['hours'][0]}-{a['hours'][1]}h (price unavailable)"

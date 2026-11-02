@@ -1,6 +1,7 @@
 !trips/README.md
 !trips/example-thailand/
 !trips/example-lisbon-morocco/
+!trips/example-rajasthan-family/
 # personal trips live outside the repo
 *.pyc
 .venv/
@@ -11,6 +12,11 @@ out/
 trips/*
 trips/*/evidence/
 trips/*/out/plan.png
+trips/example-rajasthan-family/evidence/
+trips/example-rajasthan-family/out/
+trips/example-rajasthan-family/menu.*
+trips/example-rajasthan-family/variants.md
+trips/example-rajasthan-family/notes.md
 trips/example-thailand/evidence/
 trips/example-thailand/out/*.html
 trips/example-thailand/out/*.png
