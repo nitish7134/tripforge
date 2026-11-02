@@ -27,16 +27,20 @@ def geocode(q: str) -> Result:
         url = f"{NOMINATIM}?q={q}&format=json&limit=1&accept-language=en"
         try:
             with client(20) as c:
-                js = c.get(NOMINATIM, params={"q": q, "format": "json", "limit": 1, "accept-language": "en"}).json()
+                js = c.get(NOMINATIM, params={"q": q, "format": "json", "limit": 1, "accept-language": "en",
+                                              "addressdetails": 1}).json()
         except Exception as e:  # noqa: BLE001
             return fail(f"nominatim error: {e}", url)
         if not js:
             return fail(f"nominatim: no match for {q!r}", url)
         h = js[0]
         bb = [float(x) for x in h["boundingbox"]]
+        ad = h.get("address") or {}
         return Result(ok=True, data={"lat": float(h["lat"]), "lon": float(h["lon"]), "bbox": bb,
-                                     "name": h.get("display_name", q)}, source_url=url)
-    return cache.cached("geo", {"q": q}, go)
+                                     "name": h.get("name") or q, "display": h.get("display_name", q),
+                                     "cc": (ad.get("country_code") or "").upper(), "country": ad.get("country", ""),
+                                     "type": h.get("type", ""), "class": h.get("class", "")}, source_url=url)
+    return cache.cached("geo", {"q": q, "v": 2}, go)
 
 
 def stay_bbox(city: str, country: str, area: str | None, lat: float, lon: float,
