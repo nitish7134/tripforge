@@ -140,7 +140,7 @@ a{color:var(--pur)}
 {% for a in s.areas %}<p><b>{{ a[0] }}.</b> {{ a[1] }}</p>{% endfor %}
 {% if not s.guide_found %}<p class="est">No guide article found for {{ s.name }}.</p>{% endif %}
 {% if s.places.sights %}<p><b>See / do:</b> {% for x in s.places.sights %}{{ x.name }}{% if x.price %} ({{ x.price }}){% endif %}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
-{% if s.places.veg %}<p><b>Veg food:</b> {% for x in s.places.veg %}{{ x.name }}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
+{% for d, items in s.places.diet.items() %}<p><b>{{ d|capitalize }} food:</b> {% if items %}{% for x in items %}{{ x.name }}{{ ", " if not loop.last }}{% endfor %}{% else %}none found in OpenStreetMap or Wikivoyage{% endif %}</p>{% endfor %}
 {% if s.places.nightlife %}<p><b>Nightlife:</b> {% for x in s.places.nightlife %}{{ x.name }}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
 <p class="est">Places from {% for src in s.places_sources %}{{ src.label }} ({{ "ok" if src.ok else "unavailable" }}){{ ", " if not loop.last }}{% endfor %}.</p></div>{% endfor %}
 </div>
