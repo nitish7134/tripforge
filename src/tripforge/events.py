@@ -75,11 +75,13 @@ def wikipedia_festivals(country: str, start: dt.date, end: dt.date) -> Result:
             return fail(f"wikipedia error: {type(e).__name__}", url)
         rows = []
         for h in js.get("query", {}).get("search", []):
-            snip = re.sub(r"<[^>]+>", "", h.get("snippet", ""))
+            snip = re.sub(r"<[^>]+>", "", h.get("snippet", "")).replace("&#039;", "'").replace("&quot;", '"')
+            if h["title"] in MONTHS or not any(m in snip or m in h["title"] for m in _months_in(start, end)):
+                continue
             rows.append({"text": f"{h['title']}: {snip[:180]}", "src": "wikipedia", "tag": "search hit",
                          "url": "https://en.wikipedia.org/wiki/" + h["title"].replace(" ", "_")})
         return Result(ok=True, data=rows, source_url=url)
-    return cache.cached("places:wpfest", {"c": country, "s": str(start), "e": str(end)}, go)
+    return cache.cached("places:wpfest", {"c": country, "s": str(start), "e": str(end), "v": 2}, go)
 
 
 def lunar_rows(start: dt.date, end: dt.date, texts: list[str]) -> list[dict]:

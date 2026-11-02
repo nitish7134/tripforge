@@ -136,7 +136,7 @@ def wikivoyage(page: str) -> Result:
         return Result(ok=True, data={"items": items, "lead": lead[:600], "go_next": _go_next(text),
                                      "destinations": destinations(text), "text": text[:120000],
                                      "title": js["parse"]["title"]}, source_url=url)
-    return cache.cached("places:wikivoyage", {"page": page, "v": 5}, go)
+    return cache.cached("places:wikivoyage", {"page": page, "v": 6}, go)
 
 
 _WLINK = re.compile(r"\[\[([^|\]#]+)(?:\|([^\]]+))?\]\]")
@@ -155,7 +155,7 @@ def destinations(text: str) -> list[dict]:
             if page.lower() in seen or ":" in page:
                 continue
             seen.add(page.lower())
-            rest = line[m.end():]
+            rest = line[m.end():].split("}}")[-1]
             rest = _WLINK.sub(lambda x: x.group(2) or x.group(1), re.sub(r"\{\{[^{}]*\}\}|'{2,3}", "", rest))
             out.append({"page": page, "name": (m.group(2) or page).strip(), "kind": kind,
                         "blurb": rest.strip(" -\u2013\u2014:*|}").strip()[:200]})
