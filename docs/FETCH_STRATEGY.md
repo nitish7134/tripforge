@@ -30,7 +30,7 @@ The planner agent (`agents/PLANNER_PROMPT.md`) follows the same table when it re
 | Events in the window | dates, each stop and the home country | public-holiday API for both countries (a domestic trip's single country is read once and labelled for both leave planning and closures); each stop's and the region's Wikivoyage `Events` / `Festivals` section bullets that name a month in the window; Wikipedia search hits split from glued `Name, Place (Month)` text into one event each; moon-dated events only if an article mentions one | none | live / community |
 | Climate for the dates | stop coordinates, month | weather normals API (rain days, highs, lows, sunshine) → one derived warning sentence | forecast API inside 16 days | live |
 | Visa | passport country vs each stop's country | Wikipedia "Visa requirements for <demonym> citizens" article row | unavailable with link | community, dated, always "verify" |
-| Travel advisory | passport country | that government's own feed (UK, US, AU, CA known); otherwise two third-country feeds labelled as such | none | live |
+| Travel advisory | passport country | that government's own feed (GB, US, CA known); otherwise two third-country feeds labelled as such | none | live |
 | FX | home vs destination currency (skipped if equal) | ECB rates API | none | live |
 | What travellers say recently | destination | Reddit RSS (search and thread feeds; the JSON API is often blocked), labelled "what people say" with links | skip | community |
 | Photos | stop | Wikimedia Commons search with attribution | none | live |

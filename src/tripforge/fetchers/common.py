@@ -6,7 +6,12 @@ from typing import Any
 
 import httpx
 
-HEADERS = {"User-Agent": "tripforge/0.1 (personal trip planner; https://github.com/nitish7134/tripforge)"}
+try:
+    from importlib.metadata import version as _v
+    _VER = _v("tripforge")
+except Exception:  # noqa: BLE001
+    _VER = "dev"
+HEADERS = {"User-Agent": f"tripforge/{_VER} (personal trip planner; https://github.com/nitish7134/tripforge)"}
 
 
 @dataclass
