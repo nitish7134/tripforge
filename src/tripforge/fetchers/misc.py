@@ -1,10 +1,7 @@
-"""Keyless fetchers: FX, advisory, climate, weather. Visa lives in visa.py."""
+"""Keyless fetchers: FX and short-range weather. Advisory lives in advisory.py, climate normals in climate.py, visa in visa.py."""
 from __future__ import annotations
 
 import datetime as dt
-import json
-import re
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from .common import Result, client, fail, save_json
@@ -12,7 +9,7 @@ from .common import Result, client, fail, save_json
 def fetch_fx(src: str, dst: str, evid: Path) -> Result:
     if src == dst:
         return Result(ok=True, data={"rate": 1.0, "date": None, "src": src, "dst": dst}, source_url="")
-    url = f"https://api.frankfurter.app/latest?from={src}&to={dst}"
+    url = f"https://api.frankfurter.dev/v1/latest?base={src}&symbols={dst}"
     try:
         with client() as c:
             j = c.get(url).json()
@@ -23,53 +20,6 @@ def fetch_fx(src: str, dst: str, evid: Path) -> Result:
     except Exception as e:  # noqa: BLE001
         return fail(str(e), url)
 
-
-_RSS = "https://travel.state.gov/_res/rss/TAsTWs.xml"
-
-
-def fetch_advisories(countries: dict[str, str], evid: Path) -> dict[str, Result]:
-    """countries: cc -> country name. One RSS download, matched per country."""
-    try:
-        with client() as c:
-            xml = c.get(_RSS).text
-        (evid / "advisories_rss.xml").write_text(xml)
-        items = [(i.findtext("title") or "", i.findtext("link") or "") for i in ET.fromstring(xml).iter("item")]
-    except Exception as e:  # noqa: BLE001
-        return {cc: fail(str(e), _RSS) for cc in countries}
-    out = {}
-    for cc, name in countries.items():
-        hit = next(((t, l) for t, l in items if t.lower().startswith(name.lower() + " -")), None)
-        if hit:
-            m = re.search(r"Level (\d)", hit[0])
-            out[cc] = Result(ok=True, data={"title": hit[0], "level": int(m.group(1)) if m else None},
-                             source_url=hit[1] or _RSS, screenshot_path=str(evid / "advisories_rss.xml"))
-        else:
-            out[cc] = fail(f"{name} not found in US State Dept feed", _RSS)
-    return out
-
-
-def fetch_climate(iata: str, month: int, evid: Path) -> Result:
-    url = "https://sunshineatlas.com/api/mcp"
-    body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-            "params": {"name": "get_destination_climate", "arguments": {"destination": iata}}}
-    try:
-        with client(30) as c:
-            r = c.post(url, json=body, headers={"accept": "application/json, text/event-stream"})
-        txt = r.text
-        if txt.lstrip().startswith("event:") or "\ndata:" in txt:
-            txt = [l[5:] for l in txt.splitlines() if l.startswith("data:")][0]
-        card = json.loads(json.loads(txt)["result"]["content"][0]["text"])
-        save_json(evid / f"climate_{iata}.json", card)
-        d = card["destination"]
-        m = d["monthly"][month - 1]
-        return Result(ok=True, data={
-            "city": d["city"], "month": m["month"], "day_high_c": m["dayHighC"], "night_low_c": m["nightLowC"],
-            "rain_mm": m["rainMm"], "uv": m["middayUvIndex"], "uv_cat": m["middayUvCategory"],
-            "sea_c": m.get("seaTempC"), "score": m["sunshineScore"], "best_month": d.get("bestMonth"),
-            "climate": d.get("climate")}, source_url=d.get("url") or url,
-            screenshot_path=str(evid / f"climate_{iata}.json"))
-    except Exception as e:  # noqa: BLE001
-        return fail(str(e), url)
 
 
 def fetch_weather(lat: float, lon: float, start: str, end: str, evid: Path, tag: str) -> Result:

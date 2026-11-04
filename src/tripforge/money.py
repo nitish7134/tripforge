@@ -1,7 +1,7 @@
 """Currency resolution, conversion and formatting. Nothing here assumes a home country.
 
 - country -> currency: Wikidata SPARQL (ISO 3166-1 alpha-2 -> current ISO 4217 code), keyless, cached 30 days.
-- conversion: frankfurter.app (ECB reference rates), keyless, cached 24h.
+- conversion: frankfurter.dev (ECB reference rates), keyless, cached 24h.
 - symbols: a small ISO 4217 -> symbol table; unknown codes print as the code itself.
 """
 from __future__ import annotations
@@ -10,7 +10,7 @@ from . import cache
 from .fetchers.common import Result, client, fail
 
 SPARQL = "https://query.wikidata.org/sparql"
-FRANKFURTER = "https://api.frankfurter.app/latest"
+FRANKFURTER = "https://api.frankfurter.dev/v1/latest"
 
 # Symbols for the major currencies. Anything missing is shown as its ISO code ("CHF 120").
 SYMBOLS = {

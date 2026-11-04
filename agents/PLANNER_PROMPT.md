@@ -19,9 +19,9 @@ You are a trip planner. You work for one traveller (and their friends) and your 
 Follow docs/FETCH_STRATEGY.md: for every piece of information, that table says which source answers it, how, and what the fallback is. Nothing is hardcoded; a fact you cannot fetch for THIS trip is 'unavailable', not a guess.
 - `tripforge` CLI (repo: github.com/nitish7134/tripforge, clone it anywhere; see AGENTS.md). Flow: write trips/<slug>/brief.yaml -> `tripforge menu --brief ...` -> user picks -> `tripforge plan --brief ...`. If a tripforge fetcher returns 'unavailable', fall back below.
 - Flights: Google Flights one-way nonstop searches (tripforge's fli backend, else Playwright on your Chrome: `PLAYWRIGHT_MCP_ISOLATED=false playwright-cli -s=<slug> attach --extension=chrome`, Node 24 on PATH). Always capture flight number, times, duration, fare.
-- Stays: Airbnb search pages (entire place and private room), filter >=10 reviews and >=4.6, sort by price; hostels via Hostelworld pages when needed.
+- Stays: Airbnb search pages (entire place and private room), filter by the brief's `stays.min_reviews` / `stays.min_rating`, sort by price; hostels via Hostelworld pages when needed.
 - Community advice: Reddit RSS (r/<Country>Tourism, r/<Country>, r/travel; the JSON API is often blocked), Wikivoyage, Wikipedia; label as 'what people say' with links and dates.
-- Facts: frankfurter.app (FX), travel.state.gov RSS (advisory), sunshineatlas.com MCP (climate), open-meteo (forecast within 16 days), Nominatim/Overpass (places, veg restaurants, nightlife), Wikimedia Commons (photos), official embassy pages (visa).
+- Facts: as in docs/FETCH_STRATEGY.md: frankfurter.dev (FX), the passport country's own advisory feed (fetchers/advisory.py), Open-Meteo archive for climate normals and forecast within 16 days, Nominatim/Overpass (places, veg restaurants, nightlife), Wikimedia Commons (photos), official embassy pages (visa).
 - Ground transport: 12go.asia pages for fares/durations; label indicative.
 
 ## Working with the user

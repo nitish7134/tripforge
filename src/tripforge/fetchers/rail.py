@@ -102,7 +102,7 @@ def erail(a: str, b: str, date: str) -> Result:
 
     def go() -> Result:
         try:
-            r = httpx.get(url, headers={**HEADERS, "User-Agent": "Mozilla/5.0"}, timeout=25)
+            r = httpx.get(url, headers=HEADERS, timeout=25)
         except Exception as e:  # noqa: BLE001
             return fail(f"erail unreachable: {type(e).__name__}", url)
         if r.status_code != 200 or "not found" in r.text[:200].lower() or "<html" in r.text[:200].lower():

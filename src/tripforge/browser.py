@@ -8,9 +8,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36")
-
 NODE_BIN = os.environ.get("TRIPFORGE_NODE_BIN", "/opt/homebrew/opt/node@24/bin")
 PWCLI = os.environ.get("TRIPFORGE_PWCLI") or shutil.which("playwright-cli") or str(
     Path.home() / ".kiro/crew/playwright-cli/bin/playwright-cli")
@@ -40,7 +37,7 @@ class HeadlessBrowser:
         if not self._browser:
             self._pw.stop()
             raise BrowserError(f"cannot launch Chrome/Chromium headless: {str(last)[:200]}")
-        self._ctx = self._browser.new_context(user_agent=UA, locale="en-US",
+        self._ctx = self._browser.new_context(locale="en-US",
                                               viewport={"width": 1400, "height": 1000})
         self.page = self._ctx.new_page()
         return self
