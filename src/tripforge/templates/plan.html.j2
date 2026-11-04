@@ -122,7 +122,7 @@ a{color:var(--pur)}
   {% for st in s.stays %}
   <div class="row stay{% if not loop.first %} alt{% endif %}">
    <div><div class="rt">{{ s.name }} &bull; {{ s.checkin|short }} to {{ s.checkout|short }} ({{ s.nights }}N){% if loop.first %} &bull; pick{% endif %}</div>
-    <div class="meta">{{ st.name }} &bull; {{ st.kind }} &bull; {{ st.rating }} rating, {{ st.reviews }} reviews{% if loop.first %} &bull; live via {{ s.stay_backend }}, fetched {{ s.stay_fetched }}{% endif %}{% if st.badge %} &bull; {{ st.badge }}{% endif %}{% if st.free_cancel %} &bull; free cancellation{% endif %}</div>
+    <div class="meta">{{ st.name }} &bull; {{ st.kind }} &bull; {{ st.rating }} rating, {{ st.reviews }} reviews{% if loop.first %} &bull; live via {{ s.stay_backend }}, fetched {{ s.stay_fetched }}{% endif %}{% if st.badge %} &bull; {{ st.badge }}{% endif %}{% if st.free_cancel %} &bull; free cancellation{% endif %}{% if st.over_budget %} &bull; <span class="est">over the nightly budget: nothing qualifying was within it on these dates</span>{% endif %}</div>
     <a href="{{ st.url }}">{{ st.url }}</a></div>
    <div class="pr">{{ st.total|money }}<div class="meta">{{ st.per_night|money }} a night</div></div>
   </div>
@@ -132,6 +132,13 @@ a{color:var(--pur)}
  {% endif %}
  {% for st in s.rooms %}
   <div class="row stay alt"><div><div class="rt">Budget private room, {{ s.name }}</div><div class="meta">{{ st.name }} &bull; {{ st.rating }} ({{ st.reviews }})</div><a href="{{ st.url }}">{{ st.url }}</a></div><div class="pr">{{ st.total|money }}</div></div>
+ {% endfor %}
+ {% for h in s.hostels %}
+  <div class="row stay alt"><div><div class="rt">Hostel, {{ s.name }}{% if s.stay_area %} ({{ s.stay_area }}){% endif %}</div>
+   <div class="meta">{{ h.name }} &bull; {{ h.rating }}/10, {{ h.reviews }} reviews &bull; live via Hostelworld{% if h.deposit_pct %} &bull; {{ h.deposit_pct }}% deposit online, rest at check-in{% endif %}</div>
+   <div class="meta">{% if h.dorms %}dorm bed {{ h.dorms[0].per_night|money }} a night ({{ h.dorms[0].room }}, {{ h.dorms[0].available }} left){% endif %}{% if h.dorms and h.privates %} &bull; {% endif %}{% if h.privates %}private {{ h.privates[0].per_night|money }} a night ({{ h.privates[0].room }}){% endif %}</div>
+   <a href="{{ h.url }}">{{ h.url }}</a></div>
+   <div class="pr">{% if h.dorms %}{{ h.dorms[0].total|money }}<div class="meta">per bed, {{ h.nights }}N</div>{% elif h.privates %}{{ h.privates[0].total|money }}<div class="meta">room, {{ h.nights }}N</div>{% endif %}</div></div>
  {% endfor %}
 {% endfor %}
 

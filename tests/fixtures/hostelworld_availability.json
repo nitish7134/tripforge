@@ -1,0 +1,17 @@
+{"id": "322541", "depositPercentage": 15,
+ "rooms": {
+  "dorms": [
+   {"id": 1, "name": "Deluxe 4 Bed Mixed Dorm Ensuite", "ensuite": "1", "totalBedsAvailable": 17,
+    "lowestPricePerNight": {"value": "3640.10", "currency": "INR"},
+    "totalPrice": [{"ratePlan": 1, "price": {"value": "7280.20", "currency": "INR"}}]},
+   {"id": 2, "name": "Standard 8 Bed Mixed Dorm Ensuite", "ensuite": "1", "totalBedsAvailable": 75,
+    "lowestPricePerNight": {"value": "2806.00", "currency": "INR"},
+    "totalPrice": [{"ratePlan": 1, "price": {"value": "5612.00", "currency": "INR"}},
+                   {"ratePlan": 2, "price": {"value": "5900.00", "currency": "INR"}}]},
+   {"id": 3, "name": "Sold out dorm", "ensuite": "0", "totalBedsAvailable": 0, "lowestPricePerNight": null, "totalPrice": []}
+  ],
+  "privates": [
+   {"id": 4, "name": "Deluxe 4 Bed Private Ensuite", "ensuite": "1", "totalRoomsAvailable": 3,
+    "lowestPricePerNight": {"value": "23659.50", "currency": "INR"},
+    "totalPrice": [{"ratePlan": 1, "price": {"value": "47319.00", "currency": "INR"}}]}
+  ]}}
