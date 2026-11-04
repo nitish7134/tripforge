@@ -141,9 +141,13 @@ def fetch_flight(o: str, d: str, date: str, currency: str, backend: str, br_get,
         r2.backend = "none"  # type: ignore[attr-defined]
         return r2
     from .fetchers import flights as F
-    r = cache.cached("flights:browser", params, lambda: F.fetch_leg(br, o, d, date, currency, br.evid))
-    r.backend = "browser"  # type: ignore[attr-defined]
-    return r
+    r2 = cache.cached("flights:browser", params, lambda: F.fetch_leg(br, o, d, date, currency, br.evid))
+    r2.backend = "browser"  # type: ignore[attr-defined]
+    if not r2.ok and backend != "browser" and "no nonstop" in (r.error or ""):
+        # fli answered "no nonstop flights" and the browser then crashed: the fli verdict is the real one.
+        r.backend = "fli"  # type: ignore[attr-defined]
+        return r
+    return r2
 
 
 class LazyBrowser:
