@@ -23,7 +23,7 @@ FERRY_KMH = 30
 ROAD_FACTOR = 1.25  # straight line -> road, only used to decide "road or flight" and as the duration fallback
 ROAD_KMH_FALLBACK = 60  # only when OSRM is unreachable: a duration, never money
 SNAP_MAX_M = 3000  # an endpoint snapping further than this from the nearest road has no road access
-INDIRECT_RATIO = 3.0  # road route this many times the straight line: the water is in the way
+INDIRECT_RATIO = 4.0  # roads around a peninsula run 3x the straight line and are still roads
 # A stop-to-stop hop at or under this road distance is ground, not a flight (overridable via the brief).
 GROUND_MAX_KM = 350
 

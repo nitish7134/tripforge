@@ -61,7 +61,14 @@ def to_rows(raw: list[dict], nights: int, cin: str, cout: str, adults: int, curr
     return out
 
 
-def pick(rows: list[dict], min_reviews=10, min_rating=4.6) -> list[dict]:
+# Listing kinds Airbnb files under "entire place" that are not a room with a door. Skipped unless the brief asks
+# for a shared/private-room search, where the budget tier makes them a deliberate choice.
+NOT_A_ROOM = re.compile(r"\b(tent|campsite|camper|rv|yurt|hammock|dorm|shared room|bunk)\b", re.I)
+
+
+def pick(rows: list[dict], min_reviews=10, min_rating=4.6, allow_shared: bool = False) -> list[dict]:
+    if not allow_shared:
+        rows = [r for r in rows if not NOT_A_ROOM.search(f"{r.get('kind', '')} {r.get('room_type', '')}")]
     good = [r for r in rows if r["reviews"] >= min_reviews and r["rating"] >= min_rating]
     seen, out = set(), []
     for r in sorted(good, key=lambda r: r["total"]):
@@ -74,6 +81,7 @@ def pick(rows: list[dict], min_reviews=10, min_rating=4.6) -> list[dict]:
 def fetch_stay(bbox: tuple, slug: str, cin: str, cout: str, nights: int, adults: int, budget_night: int,
                currency: str, room_type: str = "Entire home/apt", max_pages: int = 3) -> Result:
     url = search_url(slug, cin, cout, adults, budget_night, currency, room_type)
+    shared = room_type != "Entire home/apt"  # a private/shared-room search is where tents and dorms belong
     try:
         import pyairbnb
     except Exception as e:  # noqa: BLE001
@@ -91,12 +99,12 @@ def fetch_stay(bbox: tuple, slug: str, cin: str, cout: str, nights: int, adults:
             raw += standardize.from_search(res)
             cursor = (utils.get_nested_value(res, "data.presentation.staysSearch.results.paginationInfo", {}) or {}
                       ).get("nextPageCursor")
-            if not cursor or len(pick(to_rows(raw, nights, cin, cout, adults, currency))) >= 4:
+            if not cursor or len(pick(to_rows(raw, nights, cin, cout, adults, currency), allow_shared=shared)) >= 4:
                 break
     except Exception as e:  # noqa: BLE001
         return fail(f"pyairbnb error: {type(e).__name__}: {str(e)[:160]}", url)
     rows = to_rows(raw, nights, cin, cout, adults, currency)
-    ranked = pick(rows)
+    ranked = pick(rows, allow_shared=shared)
     r = Result(ok=bool(ranked), data={"ranked": ranked[:6], "n_cards": len(raw), "backend": "pyairbnb"},
                source_url=url)
     if not ranked:
