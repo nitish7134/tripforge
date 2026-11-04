@@ -35,8 +35,11 @@ prefs: [veg, party]          # also beach, culture, nature, food, or any word
 budget_night: <amount>       # optional stay cap per night, in the trip currency (omit for no cap)
 meal_rate: <amount>          # per meal per person (3 a day); required for the daily spend section
 party_rate: <amount>         # per party night per person; required for party trips
-stops: "Bangkok:4,Koh Phangan:4,Krabi:2"   # Name:nights[@IATA]
+stops: "Bangkok:4,Koh Phangan:4,Krabi:2"   # Name[/Stay area]:nights[@IATA]; "Krabi/Ao Nang:2" pins stays to walking distance of that area
 end_airport: HKT             # optional: fly home from a different airport
+stays:
+  hostelworld:               # optional: Hostelworld property ids per stop (the number in the property URL); live dorm/private prices
+    Krabi: [322541]
 ```
 
 CLI flags (`--from`, `--stops`, `--start`, `--end-airport`, `--prefs`, `--meal-rate`, `--party-rate`, ...) override the brief. `tripforge plan --trip <slug> ...` creates the folder and writes the merged `brief.yaml`, so a re-run needs no flags.

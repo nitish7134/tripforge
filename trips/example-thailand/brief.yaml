@@ -1,0 +1,46 @@
+# tripforge brief · sanitised example (two friends, Thailand, late December)
+# menu needs destination + start (or month) + nights; plan needs from + stops + start
+
+destination: Thailand
+from: BLR
+people: 2
+start: 2026-12-24
+alt_starts: [2026-12-13, 2026-12-20, 2026-12-28, 2027-01-09]
+nights: 10
+leave_days_max: 6
+
+flights:
+  nonstop_only: true
+  max_total_hours_if_stop: 6
+  cabin_only: true
+
+stays:
+  budget_night: 5000        # per night for the room, two sharing
+  hostels_ok: true          # a few city nights to save; private rooms on party-recovery nights
+  min_rating: 4.6
+  min_reviews: 10
+
+food: veg
+meal_rate: 1000             # per meal per person
+party_rate: 2500            # per party night per person
+prefs: [veg, party, beach, scenery]
+frugal: "cheapest option that keeps the experience, never the cheapest thing"
+
+# everything below is an OPTION, nothing is mandatory
+optional_cards:
+  - Bangkok
+  - Chiang Mai
+  - Pattaya
+  - Phuket
+  - Krabi / Railay
+  - Koh Phangan (Full Moon Party)
+  - Koh Samui / Koh Tao
+must_consider:
+  - Christmas vs New Year abroad, or neither
+  - Where is NYE (city countdown / beach / Full Moon)
+
+# filled in after picking a combo from menu.md. "City/Area" pins the stay search to that area (walking distance).
+stops: "Bangkok/Khao San:4,Koh Phangan:4,Krabi/Ao Nang:2"
+end_airport: HKT
+currency: INR
+passport: IN

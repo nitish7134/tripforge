@@ -17,6 +17,7 @@ from . import cache, events, ground, money
 from .fetchers import airports as AP
 from .fetchers import flights_fli as FL
 from .fetchers import rail as RL
+from .fetchers import hostels as HW
 from .fetchers import stays_pyairbnb as SP
 from .fetchers.common import Result, fail
 from .fetchers.geo import stay_bbox
@@ -173,11 +174,11 @@ class LazyBrowser:
 def fetch_stay(s: dict, cin: str, cout: str, people: int, budget: int, currency: str, backend: str, br_get,
                room_type: str = "Entire home/apt") -> Result:
     params = {"name": s["name"], "cc": s["cc"], "cin": cin, "cout": cout, "p": people, "b": budget,
-              "ccy": currency, "rt": room_type, "v": 2}
+              "ccy": currency, "rt": room_type, "area": s.get("stay_area"), "v": 4}
     if backend != "browser":
         def go():
             bb = stay_bbox(s["name"], s.get("country", ""), (s.get("areas") or [[None]])[0][0], s["lat"], s["lon"],
-                           s.get("stay_center"))
+                           s.get("stay_center"), s.get("stay_radius"))
             return SP.fetch_stay(bb, s.get("airbnb", ""), cin, cout, s["nights"], people, budget, currency, room_type)
         r = cache.cached("stays:pyairbnb", params, go)
         if r.ok or backend == "pyairbnb":
@@ -437,9 +438,14 @@ def run_plan(cfg: dict, evid: Path) -> dict:
             if cfg["hostels"]:
                 rm_f = {k: fx_ex.submit(fetch_stay, stop_for[k], k[1], k[2], guests, (max(int(budget * 0.4), 1) if budget else 0),
                                         currency, "pyairbnb", br, "Private room") for k in need_s}
+            # Hostelworld properties the brief names per stop (stays.hostelworld: {Stop: [ids]}); keyless, live.
+            hw_ids = {str(k).lower(): v for k, v in ((cfg.get("stays") or {}).get("hostelworld") or {}).items()}
+            hw_f = {k: [fx_ex.submit(HW.fetch_hostel, pid, k[1], stop_for[k]["nights"], guests, currency)
+                        for pid in hw_ids.get(stop_for[k]["name"].lower(), [])] for k in need_s}
             flights = {k: f.result() for k, f in fl_f.items()}
             stays = {k: f.result() for k, f in st_f.items()}
             rooms = {k: f.result() for k, f in rm_f.items()}
+            hostels = {k: HW.pick([f.result() for f in fs]) for k, fs in hw_f.items() if fs}
         console.print(f"  flights+stays done in {time.time() - t0:.0f}s")
         places = {k: f.result() for k, f in pl_f.items()}
         curr = {k: f.result() for k, f in cur_f.items()}
@@ -561,7 +567,9 @@ def run_plan(cfg: dict, evid: Path) -> dict:
                              "stay_backend": getattr(r, "backend", "none") if r else "none",
                              "stay_fetched": _fmt_ts(r.fetched_at) if r and r.ok else None,
                              "stay_url": r.source_url if r else "", "stay_shot": r.screenshot_path if r else None,
-                             "rooms": (rr.data["ranked"][:2] if rr and rr.ok else [])})
+                             "rooms": (rr.data["ranked"][:2] if rr and rr.ok else []),
+                             "stay_area": s.get("stay_area"),
+                             "hostels": hostels.get((i, s["checkin"], s["checkout"]), [])[:3]})
         days = o["nights"] + 1
         party_n = sum(math.ceil(s["nights"] * cfg["party_share"]) for s in o["stops"]) if night_on else 0
         spend_rows, spend_pp, spend_note = daily_spend(cfg, days, party_n, night_on)

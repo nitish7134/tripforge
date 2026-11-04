@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 
 from .fetchers import airports as AP
-from .fetchers.geo import geocode
+from .fetchers.geo import PIN_DEG, geocode, geocode_point
 from .fetchers.places import guide
 
 # A stop whose nearest airport is further than this needs a ground transfer from the airport.
@@ -19,8 +19,9 @@ class StopError(ValueError):
     pass
 
 
-def resolve(name: str, country_hint: str = "", iata: str | None = None) -> dict:
-    """-> {name, lat, lon, cc, country, airport, airport_km, alt_airports, areas, highlights, ...}."""
+def resolve(name: str, country_hint: str = "", iata: str | None = None, area: str | None = None) -> dict:
+    """-> {name, lat, lon, cc, country, airport, airport_km, alt_airports, areas, highlights, ...}.
+    `area` pins the stay search to a named district/beach inside the stop (walking-distance radius)."""
     g = geocode(f"{name}, {country_hint}" if country_hint else name)
     if not g.ok:
         raise StopError(f"cannot find {name!r}: {g.error}")
@@ -31,7 +32,12 @@ def resolve(name: str, country_hint: str = "", iata: str | None = None) -> dict:
          "airbnb": f"{name.strip().replace(' ', '-')}--{(d['country'] or '').replace(' ', '-')}"}
     gd = guide(s["name"])
     s.update(guide_found=gd["found"], guide_url=gd.get("url"), areas=gd.get("areas", []),
-             highlights=gd.get("highlights", []), stay_center=gd.get("stay_center"))
+             highlights=gd.get("highlights", []), stay_center=gd.get("stay_center"), stay_area=None, stay_radius=None)
+    if area:
+        a = geocode_point(f"{area}, {s['name']}, {s['country']}")
+        if not a.ok:
+            raise StopError(f"cannot find stay area {area!r} in {s['name']}: {a.error}")
+        s.update(stay_area=area.strip(), stay_center=[a.data["lat"], a.data["lon"]], stay_radius=PIN_DEG)
     near = AP.nearest(s["lat"], s["lon"], k=4)
     if iata:
         s["iata"] = iata.upper()
@@ -54,15 +60,29 @@ def airport_point(a: dict) -> dict:
             "lat": a["lat"], "lon": a["lon"], "aliases": [a.get("name", "")]}
 
 
-def parse_spec(spec: str, country_hint: str = "") -> list[dict]:
-    """'CityA:4,Island B:4@XYZ,CityC:2' -> resolved stops with nights."""
+SPEC = re.compile(r"^(?P<name>[^:@/]+?)\s*(?:/\s*(?P<area>[^:@]+?))?\s*(?::\s*(?P<n>\d+))?\s*(?:@\s*(?P<iata>[A-Za-z]{3}))?$")
+
+
+def split_spec(spec: str) -> list[dict]:
+    """'CityA:4,City B/Beach Area:2@XYZ' -> [{name, area, nights, iata}] without any network call."""
     out = []
     for part in [p.strip() for p in spec.split(",") if p.strip()]:
-        m = re.match(r"^(?P<name>[^:@]+?)\s*(?::\s*(?P<n>\d+))?\s*(?:@(?P<iata>[A-Za-z]{3}))?$", part)
+        m = SPEC.match(part)
         if not m:
-            raise StopError(f"cannot parse stop {part!r}; use Name:nights[@IATA]")
-        s = resolve(m["name"], country_hint, m["iata"])
-        s["nights"] = int(m["n"] or 2)
+            raise StopError(f"cannot parse stop {part!r}; use Name[/Stay area]:nights[@IATA]")
+        out.append({"name": m["name"].strip(), "area": (m["area"] or "").strip() or None,
+                    "nights": int(m["n"] or 2), "iata": m["iata"]})
+    if not out:
+        raise StopError("no stops given")
+    return out
+
+
+def parse_spec(spec: str, country_hint: str = "") -> list[dict]:
+    """'CityA:4,Island B:4@XYZ,CityC/District:2' -> resolved stops with nights."""
+    out = []
+    for p in split_spec(spec):
+        s = resolve(p["name"], country_hint, p["iata"], p["area"])
+        s["nights"] = p["nights"]
         out.append(s)
     if not out:
         raise StopError("no stops given")

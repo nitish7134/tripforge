@@ -79,26 +79,38 @@ def fetch_stay(bbox: tuple, slug: str, cin: str, cout: str, nights: int, adults:
     except Exception as e:  # noqa: BLE001
         return fail(f"pyairbnb not installed: {e}", url)
     ne_lat, ne_lon, sw_lat, sw_lon = bbox
-    raw: list = []
-    try:
+
+    def pages(price_max: int) -> list:
         from pyairbnb import api, search, standardize, utils
         key = api.get("")
-        cursor = ""
+        cursor, raw = "", []
         for _page in range(max_pages):
             res = search.get(key, cursor, cin, cout, ne_lat, ne_lon, sw_lat, sw_lon, 13, currency, room_type, 0,
-                             int(budget_night), [], False, adults, 0, 0, 0,
+                             price_max, [], False, adults, 0, 0, 0,
                              math.ceil(adults / 2) if adults > 2 else 0, 0, "en", "", "")
             raw += standardize.from_search(res)
             cursor = (utils.get_nested_value(res, "data.presentation.staysSearch.results.paginationInfo", {}) or {}
                       ).get("nextPageCursor")
             if not cursor or len(pick(to_rows(raw, nights, cin, cout, adults, currency))) >= 4:
                 break
+        return raw
+
+    over_budget = False
+    try:
+        raw = pages(int(budget_night or 0))
+        ranked = pick(to_rows(raw, nights, cin, cout, adults, currency))
+        if not ranked and budget_night:
+            # Nothing within budget on these dates: show the cheapest qualifying places anyway, flagged, so the
+            # reader sees the real market instead of "unavailable".
+            raw = pages(0)
+            ranked = pick(to_rows(raw, nights, cin, cout, adults, currency))
+            over_budget = bool(ranked)
     except Exception as e:  # noqa: BLE001
         return fail(f"pyairbnb error: {type(e).__name__}: {str(e)[:160]}", url)
-    rows = to_rows(raw, nights, cin, cout, adults, currency)
-    ranked = pick(rows)
-    r = Result(ok=bool(ranked), data={"ranked": ranked[:6], "n_cards": len(raw), "backend": "pyairbnb"},
-               source_url=url)
+    for x in ranked:
+        x["over_budget"] = over_budget
+    r = Result(ok=bool(ranked), data={"ranked": ranked[:6], "n_cards": len(raw), "backend": "pyairbnb",
+                                      "over_budget": over_budget}, source_url=url)
     if not ranked:
         r.error = f"pyairbnb: no listing with >=10 reviews and >=4.6 (seen {len(raw)})"
     return r
