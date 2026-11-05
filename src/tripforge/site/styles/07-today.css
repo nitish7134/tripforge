@@ -1,0 +1,11 @@
+/* today */
+.today{background:var(--night-2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin:10px 0}
+.today .lab{color:var(--mari);font-weight:700;font-size:13px}
+.today h3{font-size:20px;margin:2px 0 8px}
+.pl{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.pl:first-child{border-top:0}
+.pl small{display:block;color:var(--ink-2)}
+.pl a{background:var(--night);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap}
+.pl .far{color:var(--mari);font-weight:700;font-size:14px}
+.locbtn{width:100%;margin-top:10px}
+.lv{margin-top:8px;border-top:1px dashed #d9cfbb;padding-top:8px;font-size:13px;display:flex;gap:10px;flex-wrap:wrap}

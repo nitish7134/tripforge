@@ -1,0 +1,8 @@
+/* tabs */
+nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--tab) + env(safe-area-inset-bottom));padding:6px 6px env(safe-area-inset-bottom);background:rgba(11,18,32,.92);backdrop-filter:saturate(140%) blur(12px);-webkit-backdrop-filter:saturate(140%) blur(12px);border-top:1px solid var(--line);display:flex;z-index:10}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-2);font-size:11.5px;font-weight:600;border-radius:14px;padding:6px 0;transition:transform .1s}
+nav button:active{transform:scale(.94)}
+nav button.on{color:var(--mari)}
+nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.foot{color:var(--ink-2);font-size:12.5px;margin:24px 0 8px}
+@media (hover:hover) and (pointer:fine){.cta:hover{filter:brightness(1.05)}nav button:hover{color:var(--ink)}}

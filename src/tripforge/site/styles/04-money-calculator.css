@@ -1,0 +1,16 @@
+/* money calculator */
+.calc{background:var(--paper);color:var(--paper-ink);border-radius:var(--r);padding:16px 16px 12px}
+.calc .disp{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+.calc .cur{font-size:13px;color:var(--paper-ink-2)}
+.calc .val{font-size:34px;font-weight:700;word-break:break-all;min-height:40px}
+.calc .val .sym{font-weight:500;font-size:.75em;margin-right:2px;color:var(--paper-ink-2)}
+.calc .val.sub{font-size:26px;color:#3b3b3b}
+.calc .swap{margin:8px 0 10px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--paper-ink-2)}
+.calc .swap button{background:var(--paper-2);border-radius:999px;padding:6px 12px;font-weight:700;color:var(--paper-ink)}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.keys button{background:#fff;border-radius:14px;height:52px;font-size:22px;font-weight:600;color:var(--paper-ink);box-shadow:0 1px 0 #d9cfbb;transition:transform .08s}
+.keys button:active{transform:scale(.96);background:var(--paper-2)}
+.keys .f{background:var(--paper-2);font-size:16px}
+.keys .go{background:var(--mari);color:var(--mari-ink)}
+.quick{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.quick button{background:#fff;border-radius:999px;padding:6px 12px;font-weight:600;font-size:14px;box-shadow:0 1px 0 #d9cfbb}

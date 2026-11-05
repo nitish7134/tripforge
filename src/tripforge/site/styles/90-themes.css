@@ -1,0 +1,11 @@
+/* theme-only rules: accent overrides, decoration layer, PG filter */
+body::before{content:"";position:fixed;inset:0;background-image:var(--deco,none);background-size:240px 240px;opacity:.1;pointer-events:none;z-index:0}
+html.pgmode .adult{display:none}
+.stk{position:absolute;left:12px;top:12px;z-index:2;font-size:26px;letter-spacing:-4px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));transform:rotate(-8deg)}
+.pg .photo .stk{top:10px}
+#dcpre .stk{top:12px}
+[data-theme="pg13"]{--mari:#35d0b8;--mari-ink:#06211c}
+[data-theme="birthday"]{--mari:#ff7ab6;--mari-ink:#2a0a19}
+[data-theme="party-drinks"]{--mari:#ffc93c;--mari-ink:#1a1200}
+[data-theme="party-smoke"]{--mari:#8fe3a8;--mari-ink:#06210e}
+[data-theme="beach"]{--mari:#2fc4b2;--mari-ink:#06211c}

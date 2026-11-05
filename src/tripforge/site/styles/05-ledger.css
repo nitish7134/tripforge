@@ -1,0 +1,15 @@
+/* ledger */
+.led{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.led input,.led select{width:100%;background:var(--night);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px;font-size:16px}
+.led .full{grid-column:1/-1}
+.who{display:flex;gap:6px}.who button{flex:1;border:1px solid var(--line);border-radius:12px;padding:10px 0;font-weight:700;color:var(--ink-2)}
+.who button.on{background:var(--mari);color:var(--mari-ink);border-color:var(--mari)}
+.list{margin:10px 0 0}
+.item{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.item small{display:block;color:var(--ink-2)}
+.item .x{color:var(--ink-2);padding:6px 8px}
+.bal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.bal div{text-align:center;background:var(--night);border-radius:12px;padding:10px 6px}
+.bal b{display:block;font-size:18px}.bal small{color:var(--ink-2)}
+.item{cursor:pointer}.item.editing{outline:2px solid var(--mari);outline-offset:-2px;border-radius:12px}
+.estl{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:14px;padding:4px 2px}.estl input{width:18px;height:18px;accent-color:var(--mari)}

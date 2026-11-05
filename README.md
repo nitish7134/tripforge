@@ -160,3 +160,17 @@ Put them in `trips/<slug>/brief.yaml` (see `trips/example-thailand/brief.yaml` f
 
 ### What agents must not do
 Book, pay, enter credentials, or invent prices. The prompt says so; keep it when you adapt it.
+
+## Trip web app: `tripforge site`
+A phone-first, PIN-gated site for the trip itself: a Runway page (countdown, next flight with live status, weather, checklists),
+one swipe page per day (stay, tickets, directions, distance from where you stand, researched options), a Money tab (converter or
+spend pad, shared editable ledger synced across phones, budget drift) and a Kit (driver cards, SOS, refs, rules, themes).
+Everything trip-specific lives in `trips/<slug>/site/trip.json`; the template is generic.
+```bash
+tripforge site init  trips/<slug>        # skeleton from brief.yaml -> fill per src/tripforge/site/SCHEMA.md
+tripforge site merge-plans trips/<slug>  # research/*.json (agents/RESEARCH_BRIEF.md) -> site/data/plans.json
+tripforge site build trips/<slug>        # -> site/dist/ ; refuses syntax errors and private data
+tripforge site host  trips/<slug>        # server steps: Caddy gate, ledger+PIN service, flight poller
+```
+Worked example: `trips/example-goa-family` (one currency, no split, Beach theme). Themes: party, party-drinks, party-smoke,
+beach, birthday, pg13, mountain, city, plain, plus custom ones from `trip.json`.
