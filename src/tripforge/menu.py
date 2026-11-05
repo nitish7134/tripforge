@@ -1,8 +1,8 @@
-"""Options menu for any country/region: candidate stops + route combos, everything tagged live/est.
+"""Options menu for any country/region: candidate stops + route combos, every price live or unavailable.
 
 No LLM: candidates come from the Wikivoyage article's Cities/Other destinations lists, vibe fit is a
-keyword score of each stop's article against the brief's prefs, prices are live fli/pyairbnb where
-fetchable and labelled est otherwise. Writes menu.md, menu.json and variants.md next to the brief.
+keyword score of each stop's article against the brief's prefs, prices are live fli/pyairbnb/12Go reads
+or "unavailable"; never a derived number. Writes menu.md, menu.json and variants.md next to the brief.
 """
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ import datetime as dt
 import itertools
 import json
 import re
-import statistics
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -88,21 +87,51 @@ def _verdict(c: dict, prefs: list[str]) -> tuple[str, str]:
     return worth, skip
 
 
-def _route_cost(order: list[dict], home: str, ppl: int, currency: str) -> dict:
-    g = 0
-    out_f, back_f = order[0]["flight"], order[-1]["flight"]
-    # Return fare assumed ~ the outbound fare to the last stop's airport (est). Missing either -> unavailable.
-    fl = (out_f["price"] + back_f["price"]) if out_f and back_f else None
+def _leg_price(o: str, d: str, date: str, currency: str, home_cc: str) -> float | None:
+    """Cheapest priced nonstop o->d on date via fli (cached like plan.fetch_flight); None when not read."""
+    if not o or not d or o == d:
+        return None
+    r = cache.cached("flights:fli", {"o": o, "d": d, "date": date, "ccy": currency, "gl": home_cc, "v": 1},
+                     lambda: FL.fetch_leg(o, d, date, currency, home_cc))
+    priced = [x["price"] for x in (r.data or []) if x.get("price")] if r.ok else []
+    return min(priced) if priced else None
+
+
+def _legs(order: list[dict], home: str, start: dt.date) -> tuple[list[tuple], tuple]:
+    """Air hops (o, d, date) between stops that do not need ground, and the return leg (last stop -> home)."""
+    hops, day = [], start
+    for a, b in zip(order, order[1:]):
+        day += dt.timedelta(days=a["nights"])
+        if not ground.needs_ground(a, b):
+            hops.append((a["iata"], b["iata"], day.isoformat()))
+    day += dt.timedelta(days=order[-1]["nights"])
+    return hops, (order[-1]["iata"], home, day.isoformat())
+
+
+def _route_cost(order: list[dict], home: str, ppl: int, currency: str, start: dt.date, fares: dict) -> dict:
+    """Per-person core cost from live reads only. `fares` maps (o, d, date) -> price | None.
+    Any component without a live read is None (rendered 'unavailable') and so is core_pp."""
+    hops, back = _legs(order, home, start)
+    out_f = order[0]["flight"]
+    back_p = fares.get(back)
+    fl = (out_f["price"] + back_p) if out_f and back_p is not None else None
+    g, air = 0.0, iter(hops)
     for a, b in zip(order, order[1:]):
         if ground.needs_ground(a, b):
-            g += ground.mid(ground.estimate(a, b, currency))
+            amt = ground.estimate(a, b, currency).get("amount")
+            p = sum(amt) / 2 if amt else None  # live fare floor or unavailable; never a guess
         else:
-            near = [c["flight"]["price"] for c in (a, b) if c["flight"]]
-            g += (min(near) / 3) if near else 0  # domestic hop ~ a third of the long-haul fare (est)
-    stays = sum((c.get("stay_pn") or 0) * c["nights"] for c in order) / ppl
-    return {"flights_pp": None if fl is None else round(fl), "ground_pp": round(g), "stays_pp": round(stays),
-            "core_pp": None if fl is None else round(fl + g + stays),
-            "tag": "est (outbound live, return and hops estimated)" if fl is not None else "flights unavailable (rail, road or one-stop may serve the end legs; `plan` checks them)"}
+            p = fares.get(next(air))
+        g = None if g is None or p is None else g + p
+    pns = [c.get("stay_pn") for c in order]
+    stays = None if any(pn is None for pn in pns) else sum(pn * c["nights"] for pn, c in zip(pns, order)) / ppl
+    parts = {"flights": fl, "hops": g, "stays": stays}
+    missing = [k for k, v in parts.items() if v is None]
+    rnd = lambda x: None if x is None else round(x)  # noqa: E731
+    return {"flights_pp": rnd(fl), "ground_pp": rnd(g), "stays_pp": rnd(stays),
+            "core_pp": None if missing else round(fl + g + stays),
+            "tag": "live" if not missing else f"partial: {', '.join(missing)} unavailable"
+                   + (" (rail, road or one-stop may serve the end legs; `plan` checks them)" if "flights" in missing else "")}
 
 
 def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[Path, Path]:
@@ -137,23 +166,26 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
         cands = [c for c in ex.map(lambda d: _candidate(d, dest, prefs, home, start, live, currency, home_cc), dests) if c]
     cands.sort(key=lambda c: -c["fit_score"])
     cands = cands[:n]
-    # Stay price: live pyairbnb for the top few, the median of those as est for the rest.
+    # Stay price: live pyairbnb for every candidate (cached 24 h); no read -> unavailable, never a fill-in.
+    for c in cands:
+        c["stay_pn"], c["stay_tag"] = None, "unavailable"
     if live:
         from .plan import fetch_stay
         def st(c):
-            s = resolve(c["name"], dest)
+            try:
+                s = resolve(c["name"], dest)
+            except StopError:
+                return None
             s["nights"] = c["nights"]
             cin, cout = start.isoformat(), (start + dt.timedelta(days=c["nights"])).isoformat()
             r = fetch_stay(s, cin, cout, ppl, budget, currency, "pyairbnb", lambda: None)
-            return r.data["ranked"][0]["per_night"] if r.ok else None
+            ranked = (r.data or {}).get("ranked") if r.ok else None
+            return ranked[0]["per_night"] if ranked else None
         with ThreadPoolExecutor(3) as ex:
-            for c, pn in zip(cands[:6], ex.map(st, cands[:6])):
-                c["stay_pn"], c["stay_tag"] = pn, "live" if pn else None
-    known = [c["stay_pn"] for c in cands if c.get("stay_pn")]
-    med = round(statistics.median(known)) if known else None
+            for c, pn in zip(cands, ex.map(st, cands)):
+                if pn:
+                    c["stay_pn"], c["stay_tag"] = pn, "live"
     for c in cands:
-        if not c.get("stay_pn"):
-            c["stay_pn"], c["stay_tag"] = med, ("est (median of live)" if med else "unavailable")
         c["worth"], c["skip"] = _verdict(c, prefs)
     moon = events.lunar_rows(start, end, ["full moon"] if any(c["full_moon_text"] for c in cands) else [])
     fest = events.wikipedia_festivals(resolved.data["title"], start, end)
@@ -173,10 +205,17 @@ def run_menu(cfg: dict, out_dir: Path, live: bool = True, n: int = 10) -> tuple[
             extra = nights - sum(c["nights"] for c in order)
             for i in range(max(extra, 0)):
                 order[i % len(order)] = dict(order[i % len(order)], nights=order[i % len(order)]["nights"] + 1)
-            cost = _route_cost(order, home, ppl, currency)
             combos.append({"stops": [c["name"] for c in order], "nights": [c["nights"] for c in order],
-                           "fit": sum(c["fit_score"] for c in order), "cost": cost,
+                           "fit": sum(c["fit_score"] for c in order), "order": order,
                            "stops_spec": ",".join(f"{c['name']}:{c['nights']}" for c in order)})
+    # Hop and return fares: one live read per distinct (from, to, date), fetched once and shared.
+    keys = sorted({k for c in combos for hs, back in [_legs(c["order"], home, start)] for k in (*hs, back)})
+    fares: dict = {k: None for k in keys}
+    if live and keys:
+        with ThreadPoolExecutor(6) as ex:
+            fares.update(zip(keys, ex.map(lambda k: _leg_price(*k, currency, home_cc), keys)))
+    for c in combos:
+        c["cost"] = _route_cost(c.pop("order"), home, ppl, currency, start, fares)
     picks, seen = [], set()
     INF = float("inf")
     cp = lambda x: INF if x["cost"]["core_pp"] is None else x["cost"]["core_pp"]  # noqa: E731
@@ -217,7 +256,7 @@ def _md(d: dict, home: str) -> str:
     rates = (f"{_money(r['meal_rate'], M)}/meal" + (f", {_money(r['party_rate'], M)}/party night" if r["party_rate"] is not None else "")
              if r["meal_rate"] is not None else "not set (add meal_rate/party_rate to the brief)")
     L = [f"# {d['destination']} options menu ({d['window']['start']} to {d['window']['end']})", "",
-         f"Prefs: {', '.join(d['prefs']) or 'none'}. Rates: {rates}. Tags: live = fetched now, est = estimate. "
+         f"Prefs: {', '.join(d['prefs']) or 'none'}. Rates: {rates}. Tags: live = fetched now, unavailable = not read (never estimated); est = from your own brief rates. "
          f"Candidates from [Wikivoyage]({d['source']}); community suggestions, not endorsements.", "",
          "## Candidate stops", ""]
     for c in d["candidates"]:
@@ -226,12 +265,13 @@ def _md(d: dict, home: str) -> str:
                else f"fly to {c['iata']}: no nonstop priced from {home} (unavailable; `plan` also checks rail and one-stop)")
         if c["access"]:
             a = c["access"]
-            get += f" + {a['mode']} {a['hours'][0]}-{a['hours'][1]}h {_money(a['amount'][0], M)}-{_money(a['amount'][1], M)} (est)" if a.get("amount") else f" + {a['mode']} {a['hours'][0]}-{a['hours'][1]}h (price unavailable)"
+            get += f" + {a['mode']} {a['hours'][0]}-{a['hours'][1]}h from {_money(a['amount'][0], M)} (live)" if a.get("amount") else f" + {a['mode']} {a['hours'][0]}-{a['hours'][1]}h (price unavailable)"
         L += [f"### {c['name']} ({c['kind']}) -- fit {c['fit_score']}", "", c["blurb"], "",
               f"- Vibe fit: {', '.join(f'{k} {v}' for k, v in c['fit'].items()) or 'n/a'} (mentions in the article)",
               f"- Suggested nights: {c['nights']}",
-              f"- Stay: {_money(c['stay_pn'], M)}/night ({c['stay_tag']}); includes the Airbnb nightly price for an entire "
-              f"place, excludes service/cleaning fees shown at checkout, food and transfers",
+              (f"- Stay: {_money(c['stay_pn'], M)}/night (live); includes the Airbnb nightly price for an entire "
+               f"place, excludes service/cleaning fees shown at checkout, food and transfers" if c["stay_pn"] is not None
+               else "- Stay: unavailable (no live Airbnb read)"),
               f"- Getting there: {get}",
               "- Must-dos: " + ("; ".join(f"{m['name']} ({m['fee']})" for m in c["musts"]) or "none listed"),
               f"- {c['worth'].capitalize()}; {c['skip']}"]
