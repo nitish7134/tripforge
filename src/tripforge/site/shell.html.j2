@@ -65,15 +65,18 @@
       <input id="l-what" class="full" placeholder="What (e.g. {{ d.spendExample }})">
       <input id="l-amt" type="number" inputmode="decimal" placeholder="Amount">
       {% if t.features.fx %}<select id="l-cur"><option>{{ t.cur }}</option><option>{{ t.homeCur }}</option></select>{% endif %}
+      <div class="full chips" id="l-cat"></div>
       <div class="full who" id="l-who"></div>
       <label class="estl"><input type="checkbox" id="l-est"> estimate</label>
       <button class="cta full" id="l-add" onclick="addLedger()">Add to the trip ledger</button>
       <button class="ghost full" id="l-cancel" hidden onclick="cancelEdit()">Cancel edit</button>
     </div>
     <div class="bal" id="bal"></div>
+    <div class="settle" id="settle"></div>
+    <div class="cats" id="cats"></div>
     <div class="list" id="ledger"></div>
-    <div class="row" style="margin-top:10px"><button class="ghost" onclick="shareLedger()">Share summary</button><button class="ghost" onclick="syncLedger(true)">Refresh</button></div>
-    <p class="muted" id="keynote" style="margin:10px 0 0">One list for every phone. Entries marked est are estimates until the real receipt is logged.</p>
+    <div class="row" style="margin-top:10px"><button class="ghost" onclick="shareLedger()">Share summary</button></div>
+    <p class="muted" id="keynote" style="margin:10px 0 0">One list for every phone, synced every 30 s. Tap an entry to fix it. Entries marked est are estimates until the real receipt is logged.</p>
   </div>
 
   {% if d.fares %}<h2>{{ d.fares.title }}</h2><div class="panel"><table><tr><th>Leg</th><th class="r">{{ t.sym }}</th></tr>{% for r in d.fares.rows %}<tr><td>{{ r[0] }}</td><td class="r num">{{ r[1] }}</td></tr>{% endfor %}</table>{% if d.fares.note %}<p class="muted">{{ d.fares.note }}</p>{% endif %}</div>{% endif %}

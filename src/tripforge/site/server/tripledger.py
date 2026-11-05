@@ -9,7 +9,7 @@ Auth model
   everything else               -> requires cookie trip=<TRIP_TOKEN> (or header X-Trip-Key: <TRIP_TOKEN> for curl).
 Caddy also checks the same cookie before serving any static file, so without the PIN nothing is visible.
 Fail closed: if TRIP_PIN, TRIP_TOKEN, TRIP_WHO or TRIP_CURS is unset, every request is refused.
-Ledger: GET /ledger, POST /ledger, PUT /ledger/<id> (edit what/amt/cur/est), DELETE /ledger/<id>. JSON file, atomic writes, initials + amounts only.
+Ledger: GET /ledger, POST /ledger, PUT /ledger/<id> (edit what/amt/cur/who/cat/est/on), DELETE /ledger/<id>. JSON file, atomic writes, initials + amounts only.
 """
 import hmac, json, os, re, time, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -114,12 +114,15 @@ class H(BaseHTTPRequestHandler):
             e = self._body()
             amt = float(e["amt"]); who = str(e["who"])[:4].upper(); cur = str(e.get("cur", CURS[0])).upper()
             what = re.sub(r"[^\w\s.,/&()+-]", "", str(e.get("what", "")))[:60]
+            cat = re.sub(r"[^a-z_]", "", str(e.get("cat", "other")).lower())[:16] or "other"
             if amt <= 0 or who not in WHO or cur not in CURS:
                 raise ValueError("bad fields")
         except Exception as ex:  # noqa: BLE001
             return self._send(400, {"error": f"bad entry: {ex}"})
         d = load()
-        entry = {"id": uuid.uuid4().hex[:10], "what": what, "amt": amt, "cur": cur, "who": who, "ts": int(time.time() * 1000)}
+        entry = {"id": uuid.uuid4().hex[:10], "what": what, "amt": amt, "cur": cur, "who": who, "cat": cat, "ts": int(time.time() * 1000)}
+        if e.get("on"):
+            entry["on"] = int(e["on"])
         d["entries"].insert(0, entry)
         save(d)
         self._send(201, entry)
@@ -152,7 +155,7 @@ class H(BaseHTTPRequestHandler):
         self._send(204, None, {"Set-Cookie": cookie})
 
     def do_PUT(self):
-        m = re.fullmatch(r"/ledger/([0-9a-z]{10})", self.path)
+        m = re.fullmatch(r"/ledger/([0-9A-Za-z_-]{4,32})", self.path)
         if not m:
             return self._send(404, {"error": "not found"})
         if not self._auth(write=True):
@@ -169,6 +172,10 @@ class H(BaseHTTPRequestHandler):
         for x in d["entries"]:
             if x["id"] == m.group(1):
                 x.update({"what": what, "amt": amt, "cur": cur, "edited": int(time.time() * 1000)})
+                if e.get("cat"):
+                    x["cat"] = re.sub(r"[^a-z_]", "", str(e["cat"]).lower())[:16] or "other"
+                if e.get("on"):
+                    x["on"] = int(e["on"])
                 if str(e.get("who", ""))[:4].upper() in WHO:
                     x["who"] = str(e["who"])[:4].upper()
                 x.pop("est", None)
@@ -178,8 +185,11 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, x)
         self._send(404, {"error": "no such entry"})
 
+    def do_PATCH(self):  # same semantics as PUT; some clients prefer the verb
+        return self.do_PUT()
+
     def do_DELETE(self):
-        m = re.fullmatch(r"/ledger/([0-9a-z]{10})", self.path)
+        m = re.fullmatch(r"/ledger/([0-9A-Za-z_-]{4,32})", self.path)
         if not m:
             return self._send(404, {"error": "not found"})
         if not self._auth(write=True):
