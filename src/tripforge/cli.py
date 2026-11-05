@@ -20,7 +20,8 @@ console = Console()
 
 BRIEF_KEYS = ("from", "home_city", "stops", "start", "alt_start", "end_airport", "people", "budget_night", "prefs", "currency",
               "passport", "hostels", "meal_rate", "meals_per_day", "party_rate", "party_share", "transport_day",
-              "flights_backend", "stays_backend", "browser", "country", "pace", "ground", "flights", "stays", "destination")
+              "flights_backend", "stays_backend", "browser", "country", "pace", "ground", "flights", "stays", "destination",
+              "site", "private_patterns")
 
 
 def slugify(s: str) -> str:
@@ -160,6 +161,67 @@ def suggest(brief: Path = typer.Option(..., "--brief"), live: bool = typer.Optio
                  brief=brief, alt_start=None, end_airport=None, people=None, budget_night=None, prefs=None,
                  meal_rate=None, party_rate=None, currency=None, passport=None, country=cfg.get("destination"),
                  flights_backend=None, stays_backend=None, browser=None, hostels=False, no_cache=False, png=False)
+
+
+site_app = typer.Typer(add_completion=False, help="Phone trip page: scaffold from site_template/, build, check.")
+app.add_typer(site_app, name="site")
+
+
+@site_app.command("init")
+def site_init(dir: Path = typer.Argument(..., help="Directory for the site, e.g. trips/<slug>/site"),
+              brief: Path = typer.Option(..., "--brief", help="brief.yaml (dates, stops, people, currency; optional site: block)"),
+              plan_json: Optional[Path] = typer.Option(None, "--plan", help="plan.json (default: <brief dir>/out/plan.json)"),
+              force: bool = typer.Option(False, "--force", help="Write into a non-empty directory")):
+    """Copy site_template/ to DIR and write js/03-data-trip.js + js/04-data-kit.js; unknowns become TODOs."""
+    from . import site
+    cfg = load_brief(brief)
+    pj = plan_json or brief.resolve().parent / "out" / "plan.json"
+    try:
+        left = site.init(dir, cfg, site.load_plan(pj), force=force)
+    except site.SiteError as e:
+        console.print(f"[red]error:[/red] {e}")
+        raise typer.Exit(2)
+    console.print(f"[green]site[/green] {dir}  (plan: {pj if pj.exists() else 'none, brief only'})")
+    console.print(f"{len(left)} TODOs to fill in {dir}/src/js; then: tripforge site build {dir}")
+    for t in left[:40]:
+        console.print(f"  {t}")
+
+
+@site_app.command("build")
+def site_build(dir: Path = typer.Argument(..., help="Site directory")):
+    """Build DIR/index.html from DIR/src (runs DIR/tools/build.py, which gates on node --check)."""
+    from . import site
+    try:
+        code, out = site.run_build(dir)
+    except site.SiteError as e:
+        console.print(f"[red]error:[/red] {e}")
+        raise typer.Exit(2)
+    console.print(out)
+    raise typer.Exit(code)
+
+
+@site_app.command("check")
+def site_check(dir: Path = typer.Argument(..., help="Site directory"),
+               brief: Optional[Path] = typer.Option(None, "--brief", help="brief.yaml with private_patterns "
+                                                    "(default: DIR/brief.yaml, then DIR/../brief.yaml)")):
+    """Fail if index.html is stale against src/ or if the page or data/*.json match a private pattern."""
+    from . import site
+    try:
+        code, out = site.run_build(dir, check=True)
+    except site.SiteError as e:
+        console.print(f"[red]error:[/red] {e}")
+        raise typer.Exit(2)
+    if code:
+        console.print(f"[red]build check failed:[/red] {out}")
+        raise typer.Exit(1)
+    bp = site.find_brief(dir, brief)
+    pats = [str(p) for p in ((load_brief(bp).get("private_patterns") if bp else None) or [])]
+    hits = site.privacy_hits(dir, pats)
+    for h in hits:
+        console.print(f"[red]private:[/red] {h}")
+    left = site.todos(dir)
+    console.print(f"build fresh; {len(pats)} private patterns from {bp or 'no brief'}; {len(hits)} hits; {len(left)} TODOs left")
+    raise typer.Exit(1 if hits else 0)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,26 @@
+:root{
+  --night:#0b1220; --night-2:#111a2e; --ink:#eef1f8; --ink-2:#9aa3b8; --line:#22304d;
+  --paper:#f6efe3; --paper-2:#eadfcc; --paper-ink:#1a1a1a; --paper-ink-2:#6b655a;
+  --mari:#ffb020; --mari-ink:#1a1200; --ok:#5ad37e; --open:#ff6b6b;
+  --r:18px; --tab:72px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%;background:var(--night)}
+body{margin:0;min-height:100dvh;background:var(--night);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(var(--tab) + env(safe-area-inset-bottom));overscroll-behavior-y:none;text-wrap:pretty}
+h1,h2,h3,.big,.num{font-family:ui-rounded,"SF Pro Rounded","Nunito","Avenir Next",system-ui,sans-serif;text-wrap:balance}
+a{color:var(--mari);text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;user-select:none;touch-action:manipulation}
+input{font-size:16px}
+.num{font-variant-numeric:tabular-nums}
+main{max-width:720px;margin:0 auto;padding:0 16px;position:relative;z-index:1}
+section{display:none}section.on{display:block;animation:in .22s ease-out}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){section.on{animation:none}}
+.top{padding:calc(12px + env(safe-area-inset-top)) 16px 8px;display:flex;justify-content:space-between;align-items:baseline;max-width:720px;margin:0 auto;position:sticky;top:0;z-index:9;background:rgba(11,18,32,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.top h1{font-size:22px;margin:0;letter-spacing:-.2px}
+.top .clock{color:var(--ink-2);font-size:12.5px;display:flex;gap:12px;font-variant-numeric:tabular-nums}
+.top .clock b{color:var(--ink);font-weight:600}
+h2{font-size:14px;color:var(--ink-2);font-weight:600;margin:22px 0 10px}
+h3{font-size:17px;margin:0 0 6px}
+.muted{color:var(--ink-2);font-size:14px}
+.clock i{font-style:normal}

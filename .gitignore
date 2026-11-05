@@ -20,3 +20,6 @@ trips/example-rajasthan-family/notes.md
 trips/example-thailand/evidence/
 trips/example-thailand/out/*.html
 trips/example-thailand/out/*.png
+# built from site_template/src by tools/build.py
+site_template/index.html
+site_template/build.check.js

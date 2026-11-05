@@ -111,6 +111,20 @@ Your own trips are personal: `trips/` is gitignored except `trips/example-thaila
 - Visa data is community-maintained Wikipedia text; the plan always says to verify with the embassy. If Wikipedia cannot be read the cell says unavailable and links the article.
 - Scrapes page text for the browser fallbacks; Google/Airbnb layout changes can break those parsers (`tests/` has fixtures).
 
+## Trip page (during the trip)
+
+Once the trip is booked, `tripforge site` turns it into an offline phone page: day-by-day swipe deck, currency
+calculator, shared ledger with minimal settle-up, driver cards, PIN-gated with member and visitor roles.
+
+```bash
+tripforge site init trips/my-trip/site --brief trips/my-trip/brief.yaml   # uses out/plan.json when present; unknowns are TODOs
+tripforge site build trips/my-trip/site                                    # src/ -> index.html (node --check)
+tripforge site check trips/my-trip/site                                    # stale build or brief.private_patterns hit -> exit 1
+```
+
+Template, field reference and deploy recipe: [site_template/README.md](site_template/README.md). What went wrong last
+time and how to avoid it: [docs/LEARNINGS.md](docs/LEARNINGS.md).
+
 ## Trips folder and the planner agent
 
 See `TRIPS.md` for exactly where files are written and how to delete them.
