@@ -164,3 +164,37 @@ def suggest(brief: Path = typer.Option(..., "--brief"), live: bool = typer.Optio
 
 if __name__ == "__main__":
     app()
+
+
+# ---------------- site: the phone-first trip web app ----------------
+site_app = typer.Typer(help="Build a PIN-gated, phone-first trip web app from trips/<slug>/site/trip.json (see src/tripforge/site/SCHEMA.md).")
+app.add_typer(site_app, name="site")
+
+
+@site_app.command("init")
+def site_init(trip_dir: Path = typer.Argument(..., help="trips/<slug>")):
+    """Write a trip.json skeleton pre-filled from brief.yaml."""
+    from tripforge.site import init
+    print(f"wrote {init(trip_dir)}; fill it following src/tripforge/site/SCHEMA.md")
+
+
+@site_app.command("build")
+def site_build(trip_dir: Path = typer.Argument(..., help="trips/<slug>"), no_bump: bool = typer.Option(False, "--no-bump", help="keep the service-worker cache version")):
+    """trip.json -> site/dist/ (index.html, sw.js, manifest, lock/, icon, img/, data/). Refuses JS syntax errors and private data."""
+    from tripforge.site import build
+    dist = build(trip_dir, bump=not no_bump)
+    print(f"built {dist} ({(dist / 'index.html').stat().st_size // 1024} KB page)")
+
+
+@site_app.command("merge-plans")
+def site_merge(trip_dir: Path = typer.Argument(..., help="trips/<slug>")):
+    """research/*.json -> site/data/plans.json"""
+    from tripforge.site.merge_plans import merge
+    merge(trip_dir)
+
+
+@site_app.command("host")
+def site_host(trip_dir: Path = typer.Argument(..., help="trips/<slug>")):
+    """Print the server steps (files, env, systemd, Caddy) for this trip."""
+    from tripforge.site import host_notes
+    print(host_notes(trip_dir))

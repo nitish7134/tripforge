@@ -1,0 +1,50 @@
+/* day deck */
+.stripwrap{margin:0 -16px;padding:4px 16px 0}
+.strip{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.strip button{flex:0 0 auto;width:48px;padding:7px 0 6px;border-radius:14px;border:1px solid var(--line);color:var(--ink-2);text-align:center;line-height:1}
+.strip button b{display:block;font-size:17px;color:var(--ink);font-family:ui-rounded,"SF Pro Rounded",system-ui}
+.strip button small{font-size:10.5px;font-weight:600}
+.strip button.on{background:var(--mari);border-color:var(--mari);color:var(--mari-ink)}.strip button.on b{color:var(--mari-ink)}
+.strip button i{display:block;width:5px;height:5px;border-radius:50%;margin:5px auto 0;background:var(--ok)}
+.strip button i.open{background:var(--open)}.strip button i.none{background:transparent}
+.deck{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;height:var(--deckh,70dvh);perspective:1400px;position:relative;padding:2px 0 6px;-webkit-overflow-scrolling:touch}
+.deck::-webkit-scrollbar{display:none}
+.deck::-webkit-scrollbar{display:none}
+.pg{flex:0 0 100%;scroll-snap-align:start;scroll-snap-stop:always;background:var(--night-2);border:1px solid var(--line);border-radius:var(--r);padding:0 16px 16px;margin:0;overflow-x:hidden;overflow-y:auto;height:100%;box-sizing:border-box;position:relative;transform-style:preserve-3d;backface-visibility:hidden;scrollbar-width:none;will-change:transform}
+.pg::-webkit-scrollbar{display:none}
+.pg .photo{height:190px;margin:0 -16px 12px;background-size:cover;background-position:center;position:relative}
+.pg .photo::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(17,26,46,.05) 40%,var(--night-2) 100%)}
+.pg .photo .cap{position:absolute;right:10px;bottom:8px;font-size:10px;color:rgba(255,255,255,.55);z-index:1}
+.pg .hd{display:flex;align-items:baseline;gap:12px;margin-top:-34px;position:relative;z-index:1}
+.banner{position:relative;border-radius:var(--r);overflow:hidden;height:150px;margin:10px 0;background-size:cover;background-position:center}
+.banner::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(11,18,32,.85),rgba(11,18,32,.1))}
+.banner div{position:absolute;left:16px;bottom:12px;z-index:1}
+.banner b{display:block;font-size:22px;font-family:ui-rounded,"SF Pro Rounded",system-ui}
+.banner span{font-size:13px;color:var(--ink-2)}
+.pg .dn{font-family:ui-rounded,"SF Pro Rounded",system-ui;font-weight:800;font-size:44px;line-height:1;letter-spacing:-1.5px}
+.pg .dn small{display:block;font-size:12px;font-weight:600;color:var(--ink-2);letter-spacing:0;margin-top:3px}
+.pg .where{color:var(--mari);font-weight:600;font-size:13px}
+.pg h3{font-size:20px;margin:2px 0 0;letter-spacing:-.3px}
+.pg p{margin:10px 0 0;font-size:15px}
+.slip{background:var(--paper);color:var(--paper-ink);border-radius:14px;padding:12px 14px;margin-top:12px;position:relative}
+.slip .lab{font-size:11.5px;font-weight:700;color:var(--paper-ink-2);letter-spacing:.2px}
+.slip .nm{font-size:17px;font-weight:700;margin-top:2px}
+.slip .sub{font-size:13px;color:var(--paper-ink-2);margin-top:2px}
+.slip .act{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.slip .act a,.slip .act button{background:#fff;border-radius:999px;padding:7px 12px;font-size:13.5px;font-weight:600;color:var(--paper-ink);box-shadow:0 1px 0 #d9cfbb;display:inline-flex;gap:6px;align-items:center}
+.slip .act a.go{background:var(--mari);color:var(--mari-ink);box-shadow:none}
+.slip .st{position:absolute;right:12px;top:12px;font-size:10.5px;font-weight:800;border:2px solid currentColor;border-radius:6px;padding:1px 6px;transform:rotate(-5deg)}
+.slip .st.ok{color:#1d7a3f}.slip .st.open{color:#b42323}
+.slip .tk{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-top:6px}
+.slip .tk b{font-size:26px;font-family:ui-rounded,"SF Pro Rounded",system-ui;letter-spacing:-.5px}
+.slip .tk span{display:block;font-size:12px;color:var(--paper-ink-2)}
+.slip .tk .r{text-align:right}
+.slip svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+details{margin-top:6px}summary{list-style:none;cursor:pointer;color:var(--mari);font-weight:600;font-size:14px;padding:6px 0}
+summary::-webkit-details-marker{display:none}summary::after{content:" ⌄";display:inline-block;transition:transform .15s}details[open] summary::after{transform:rotate(180deg)}
+details ul{margin:4px 0 0 18px;padding:0}details li{margin:4px 0;font-size:15px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chips button{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:14px;color:var(--ink-2)}
+.chips button.on{background:var(--ink);color:var(--night);border-color:var(--ink)}

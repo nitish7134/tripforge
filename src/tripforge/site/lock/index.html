@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="robots" content="noindex,nofollow">
+<title>Goa</title>
+<link rel="icon" href="lock/icon.svg">
+<link rel="apple-touch-icon" href="lock/icon-180.png">
+<style>
+:root{--night:#0b1220;--ink:#eef1f8;--ink-2:#9aa3b8;--mari:#1fb6a6}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--night);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+button{font:inherit;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#lock{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:flex-end}
+.bg{position:absolute;inset:0;background:url(lock/bg.jpg) center/cover}
+.bg::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(11,18,32,.15) 0%,rgba(11,18,32,.55) 45%,var(--night) 78%)}
+.in{position:relative;padding:0 22px calc(28px + env(safe-area-inset-bottom));max-width:420px;width:100%;margin:0 auto}
+.top small{color:var(--mari);font-weight:700;font-size:13px;letter-spacing:.3px}
+.top h1{font-size:48px;margin:2px 0 0;letter-spacing:-1.5px;line-height:1;font-weight:800}
+.top p{margin:6px 0 0;color:var(--ink-2);font-size:15px}
+.dots{display:flex;gap:14px;justify-content:center;margin:26px 0 8px}
+.dots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink-2);transition:background .12s,transform .12s}
+.dots i.on{background:var(--mari);border-color:var(--mari);transform:scale(1.15)}
+.dots.bad{animation:shake .5s}
+@keyframes shake{20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
+.note{text-align:center;color:var(--ink-2);font-size:14px;margin:0 0 16px;min-height:20px}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.keys button{height:62px;border-radius:18px;background:rgba(246,239,227,.1);border:1px solid rgba(246,239,227,.14);color:var(--ink);font-size:26px;font-weight:600;font-family:ui-rounded,"SF Pro Rounded",system-ui;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:transform .08s,background .08s}
+.keys button:active{transform:scale(.94);background:rgba(31,182,166,.35)}
+.keys button.sm{font-size:18px;color:var(--ink-2)}
+.keys button:disabled{opacity:.4}
+</style>
+</head>
+<body>
+<div id="lock"><div class="bg"></div><div class="in">
+  <div class="top"><small>22 – 30 NOV</small><h1>Goa</h1><p>Morjim · Baga</p></div>
+  <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
+  <p class="note" id="note">Enter the PIN</p>
+  <div class="keys" id="keys"></div>
+</div></div>
+<script>
+let buf='',busy=false;const dots=document.getElementById('dots'),note=document.getElementById('note'),keys=document.getElementById('keys');
+keys.innerHTML=['1','2','3','4','5','6','7','8','9','','0','del'].map(k=>k===''?'<span></span>':`<button class="${k==='del'?'sm':''}" data-k="${k}">${k==='del'?'⌫':k}</button>`).join('');
+function draw(){dots.querySelectorAll('i').forEach((d,i)=>d.classList.toggle('on',i<buf.length))}
+function fail(msg){dots.classList.add('bad');note.textContent=msg;if(navigator.vibrate)navigator.vibrate(80);setTimeout(()=>{buf='';draw();dots.classList.remove('bad')},600)}
+async function submit(){busy=true;note.textContent='Checking…';
+ try{const r=await fetch('api/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:buf}),credentials:'same-origin'});
+  if(r.status===204){note.textContent='Welcome';location.replace('./');return}
+  const j=await r.json().catch(()=>({}));
+  if(r.status===429){fail(`Too many tries. Wait ${Math.ceil((j.retry||600)/60)} min.`);keys.querySelectorAll('button').forEach(b=>b.disabled=true);setTimeout(()=>keys.querySelectorAll('button').forEach(b=>b.disabled=false),(j.retry||600)*1000)}
+  else fail(j.left!=null?`Wrong PIN · ${j.left} tries left`:'Wrong PIN')}
+ catch(e){fail('Offline. Try again.')}finally{busy=false}}
+function key(k){if(busy)return;if(k==='del'){buf=buf.slice(0,-1);draw();return}if(!/^\d$/.test(k)||buf.length>=4)return;buf+=k;draw();if(buf.length===4)submit()}
+keys.onclick=e=>{const b=e.target.closest('button');if(b&&!b.disabled)key(b.dataset.k)};
+document.addEventListener('keydown',e=>key(e.key==='Backspace'?'del':e.key));
+</script>
+</body>
+</html>

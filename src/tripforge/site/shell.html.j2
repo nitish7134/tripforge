@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en" data-theme="{{ t.defaultTheme }}">
+<head>
+<meta charset="utf-8">
+<base href="/{{ t.slug }}/">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex">
+<title>{{ t.name }} · {{ t.dates }}</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- @css -->
+</head>
+<body>
+
+<div class="top"><h1 id="ttl">{{ t.name }}</h1><div class="clock">{% if t.homeTz and t.homeTz != t.tz %}<span><b id="clk-h">--:--</b> {{ t.homeTzLabel }}</span><span><b id="clk">--:--</b> {{ t.tzLabel }}</span>{% else %}<span><b id="clk-d">…</b></span><span><b id="clk">--:--</b> {{ t.tzLabel }}</span>{% endif %}</div></div>
+
+<main>
+<!-- ================= TRIP: swipe deck ================= -->
+<section id="trip" class="on">
+  <div class="stripwrap"><div class="strip" id="strip"></div></div>
+  <div class="deck" id="deck">
+  <article class="pg" id="dcpre">
+    <div class="photo" style="background-image:url(img/{{ d.runway.img }}.jpg)"><span class="cap">{{ d.cred[d.runway.img] }}</span></div>
+    <div class="hd"><div class="dn" id="pre-dn">…<small id="pre-sm">days out</small></div><div><div class="where">Runway · {{ t.home }}</div><h3 id="prog-h">… to take-off</h3></div></div>
+    <div class="prog" style="margin-top:12px"><i id="prog-i"></i></div>
+    <div class="row" style="margin-top:10px"><span class="pill ok">{{ d.runway.booked }} booked</span>{% if d.runway.open %}<span class="pill open">{{ d.runway.open }} open</span>{% endif %}<span class="pill">{{ t.nights }} nights</span><span class="pill" id="prog-s">{{ t.t0Label }}</span></div>
+    {% if d.events %}<h2>Next flight</h2><div id="ticket"></div>{% endif %}
+    {% if d.cities %}<h2>Weather there now</h2>
+    <div class="wx" id="wx" style="grid-template-columns:repeat({{ d.cities|length }},1fr)">{% for c in d.cities %}<div><small>{{ c[0] }}</small><span class="t">…</span></div>{% endfor %}</div>
+    <div class="muted" id="wx-note" style="margin-top:6px">Live from Open-Meteo. Each day page shows its own forecast once the trip is inside the 16-day window.</div>{% endif %}
+    {% if d.runway.headsup %}<h2>Heads-up</h2><div class="panel">{% for h in d.runway.headsup %}<div class="kv"><div><b>{{ h.t }}</b><div class="muted">{{ h.d }}</div></div>{% if h.u %}<a href="{{ h.u }}" target="_blank">{{ h.l or 'link' }}</a>{% else %}<span></span>{% endif %}</div>{% endfor %}</div>{% endif %}
+    {% if d.runway.open_table %}<h2>{{ d.runway.open_table.title }}</h2><div class="panel"><table><tr>{% for h in d.runway.open_table.head %}<th{% if loop.last %} class="r"{% endif %}>{{ h }}</th>{% endfor %}</tr>{% for r in d.runway.open_table.rows %}<tr>{% for c in r %}<td{% if loop.last %} class="r num"{% endif %}>{{ c }}</td>{% endfor %}</tr>{% endfor %}</table>{% if d.runway.open_table.note %}<p class="muted">{{ d.runway.open_table.note }}</p>{% endif %}</div>{% endif %}
+    {% if d.todo %}<details class="fold"><summary>Before we fly<small id="cnt-todo"></small></summary><div class="panel chk"><ul id="todo"></ul><button class="ghost" style="margin-top:10px" onclick="resetChk('todo')">Reset</button></div></details>{% endif %}
+    {% if d.pack %}<details class="fold"><summary>Pack<small id="cnt-pack"></small></summary><div class="panel chk"><ul id="pack"></ul><button class="ghost" style="margin-top:10px" onclick="resetChk('pack')">Reset</button></div></details>{% endif %}
+  </article>
+  </div>
+</section>
+
+<!-- ================= MONEY ================= -->
+<section id="money">
+  <div class="calc">
+    <div class="disp">
+      {% if t.features.fx %}<div><div class="cur" id="cur-a">{{ t.cur }}</div><div class="val num" id="val-a">0</div></div>
+      <div style="text-align:right"><div class="cur" id="cur-b">{{ t.homeCur }}</div><div class="val sub num" id="val-b">{{ t.homeSym }}0</div></div>
+      {% else %}<div><div class="cur">AMOUNT</div><div class="val num" id="val-a">{{ t.sym }}0</div></div>
+      <div style="text-align:right"><div class="cur">TRIP SO FAR</div><div class="val sub num" id="val-b">{{ t.sym }}0</div></div>{% endif %}
+    </div>
+    <div class="swap"><span id="rate-line">…</span>{% if t.features.fx %}<button onclick="swap()">⇅ swap</button>{% endif %}</div>
+    <div class="keys">
+      <button onclick="k('7')">7</button><button onclick="k('8')">8</button><button onclick="k('9')">9</button><button class="f" onclick="k('C')">C</button>
+      <button onclick="k('4')">4</button><button onclick="k('5')">5</button><button onclick="k('6')">6</button><button class="f" onclick="k('⌫')">⌫</button>
+      <button onclick="k('1')">1</button><button onclick="k('2')">2</button><button onclick="k('3')">3</button>{% if t.split == 'equal' %}<button class="f" onclick="k('÷n')">÷{{ t.people|length }}</button>{% else %}<button class="f" onclick="k('k')">k</button>{% endif %}
+      <button onclick="k('0')">0</button><button onclick="k('00')">00</button><button onclick="k('.')">.</button><button class="go" onclick="addFromCalc()">+ log</button>
+    </div>
+    <div class="quick">{% for q in d.quick %}<button onclick="setA({{ q }})">{{ "{:,}".format(q) }}</button>{% endfor %}</div>
+  </div>
+
+  <h2>{% if t.split == 'equal' %}Shared spends · split {{ t.people|length }} ways{% else %}Trip spends{% endif %}</h2>
+  <div class="panel">
+    <div class="led">
+      <input id="l-what" class="full" placeholder="What (e.g. {{ d.spendExample }})">
+      <input id="l-amt" type="number" inputmode="decimal" placeholder="Amount">
+      {% if t.features.fx %}<select id="l-cur"><option>{{ t.cur }}</option><option>{{ t.homeCur }}</option></select>{% endif %}
+      <div class="full who" id="l-who"></div>
+      <label class="estl"><input type="checkbox" id="l-est"> estimate</label>
+      <button class="cta full" id="l-add" onclick="addLedger()">Add to the trip ledger</button>
+      <button class="ghost full" id="l-cancel" hidden onclick="cancelEdit()">Cancel edit</button>
+    </div>
+    <div class="bal" id="bal"></div>
+    <div class="list" id="ledger"></div>
+    <div class="row" style="margin-top:10px"><button class="ghost" onclick="shareLedger()">Share summary</button><button class="ghost" onclick="syncLedger(true)">Refresh</button></div>
+    <p class="muted" id="keynote" style="margin:10px 0 0">One list for every phone. Entries marked est are estimates until the real receipt is logged.</p>
+  </div>
+
+  {% if d.fares %}<h2>{{ d.fares.title }}</h2><div class="panel"><table><tr><th>Leg</th><th class="r">{{ t.sym }}</th></tr>{% for r in d.fares.rows %}<tr><td>{{ r[0] }}</td><td class="r num">{{ r[1] }}</td></tr>{% endfor %}</table>{% if d.fares.note %}<p class="muted">{{ d.fares.note }}</p>{% endif %}</div>{% endif %}
+  {% if d.budget %}<details class="budget" id="budget">
+    <summary><span>Expected budget vs real</span><small id="bud-sum">…</small></summary>
+    <div class="panel" style="margin-top:6px">
+      <div class="drift" id="drift"></div>
+      {% for r in d.budget.rows %}<div class="kv"><span>{{ r[0] }}</span><b class="num">{{ r[1] }}</b></div>{% endfor %}
+      <div class="kv"><b>Expected, {% if t.split == 'equal' %}each{% else %}whole trip{% endif %}</b><b class="num">{{ d.budget.total }}</b></div>
+      {% if d.budget.note %}<p class="muted">{{ d.budget.note }}</p>{% endif %}
+    </div>
+  </details>{% endif %}
+</section>
+
+<!-- ================= KIT ================= -->
+<section id="kit">
+  {% if d.driver %}<h2>Show the driver</h2>
+  {% for c in d.driver %}<div class="taxi"><div class="cap">{{ c.cap }}</div><div class="th"{% if not c.local %} style="font-size:22px"{% endif %}>{{ c.local or c.name }}</div><div class="en">{{ c.en }}</div>{% if c.q or c.tel %}<div class="act" style="margin-top:10px;display:flex;gap:8px">{% if c.q %}<a class="tbtn go" href="https://www.google.com/maps/dir/?api=1&travelmode=driving&destination={{ c.q|urlencode }}" target="_blank">Directions</a>{% endif %}{% if c.tel %}<a class="tbtn" href="tel:{{ c.tel }}">Call</a>{% endif %}</div>{% endif %}</div>{% endfor %}{% endif %}
+  {% for sec in d.kit %}<h2>{{ sec.title }}</h2><div class="panel">{% for r in sec.rows %}<div class="{{ 'call' if sec.kind == 'call' else 'kv' }}"><div><b>{% if r.u and sec.kind != 'call' and r.linkTitle %}<a href="{{ r.u }}" target="_blank">{{ r.t }}</a>{% else %}{{ r.t }}{% endif %}</b>{% if r.d %}<div class="muted">{{ r.d|safe }}</div>{% endif %}</div>{% if sec.kind == 'call' and r.tel %}<a href="tel:{{ r.tel }}">{{ r.telLabel or r.tel }}</a>{% elif r.ref %}<button class="ref" onclick="cp('{{ r.ref }}')">{{ r.ref }}</button>{% elif r.pill %}<span class="pill {{ r.pillClass or 'ok' }}">{{ r.pill }}</span>{% elif r.u and not r.linkTitle %}<a href="{{ r.u }}" target="_blank">{{ r.l or 'source' }}</a>{% else %}<span></span>{% endif %}</div>{% endfor %}{% if sec.note %}<p class="muted">{{ sec.note|safe }}</p>{% endif %}</div>{% endfor %}
+  {% if d.phrases %}<h2>{{ d.phrasesTitle or 'Say it, tap to hear' }}</h2><div class="panel" id="phrases"></div>{% endif %}
+  <div id="themebox" hidden><h2>Theme</h2><div class="chips" id="themes"></div><p class="muted">Changes how the page looks on this phone only.</p></div>
+  {% if d.smarts %}<h2>Street smarts</h2><div class="panel"><ul style="margin:0 0 0 18px;padding:0">{% for s in d.smarts %}<li>{{ s }}</li>{% endfor %}</ul></div>{% endif %}
+  <p class="foot">{{ d.foot|safe }} Built with <a href="https://github.com/nitish7134/tripforge" target="_blank">tripforge</a>.</p>
+</section>
+</main>
+{% for tpl in d.templates %}<template id="{{ tpl.id }}">{{ tpl.html|safe }}</template>{% endfor %}
+
+<nav>
+  <button class="on" data-s="trip" aria-label="Trip"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 12h16M14 7l5 5-5 5"/></svg>Trip</button>
+  <button data-s="money" aria-label="Money"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3"/><circle cx="12" cy="12" r="2.5"/><path d="M7 12h.01M17 12h.01"/></svg>Money</button>
+  <button data-s="kit" aria-label="Kit"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg>Kit</button>
+</nav>
+
+<!-- @js -->
+</body>
+</html>

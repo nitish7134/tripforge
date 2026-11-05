@@ -18,6 +18,19 @@ tripforge plan --from <IATA> --stops "CityA:2,CityB:3,CityC:5" --start 2026-12-2
 ```
 Playwright needs a browser: `playwright install chromium`, or set `--browser headless` to use installed Google Chrome. If Google/Airbnb block the headless browser, use `--browser attach` (see README).
 
+## Building the trip web app (`tripforge site`)
+When the user wants a phone-first site for the trip (swipe-able day pages, live weather/FX/flight status, shared ledger behind a
+PIN), you do not write HTML. You fill one file and build:
+1. `tripforge site init trips/<slug>` writes `trips/<slug>/site/trip.json` from the brief. Read `src/tripforge/site/SCHEMA.md`
+   and fill it from the plan and the user's bookings. Compute weekdays from dates; never type them.
+2. Research per town with `agents/RESEARCH_BRIEF.md` (one agent per town), then `tripforge site merge-plans trips/<slug>`.
+3. Photos: CC-licensed landscapes into `trips/<slug>/site/img/`, credits in `data.cred`. Look at them; reject selfies and crowds.
+4. `tripforge site build trips/<slug>` -> `site/dist/`. It refuses JS syntax errors and private data (passport shapes,
+   bank details, `private_patterns`). Screenshot at 390px, read the console, look at the pixels.
+5. `tripforge site host trips/<slug>` prints the server steps (Caddy block, systemd units, env). The person who owns the host runs them.
+The template (`src/tripforge/site/`) is reusable code only: themes, components, lock page, service worker, ledger + PIN API,
+flight poller. Anything about a place or a traveller belongs in `trip.json`; `tests/test_site.py` enforces this.
+
 ## Conventions
 - Follow `docs/FETCH_STRATEGY.md`: define what to fetch and how; never add place names, fares or tips to code or data files.
 - Write every trip into `trips/<slug>/` (see `TRIPS.md`); never scatter files elsewhere. Trips are gitignored; commit only sanitised examples.
