@@ -25,6 +25,7 @@
 12-day-deck
 13-rate-calculator
 14-role
+14b-settle
 15-ledger
 16-phrases
 17-checklists

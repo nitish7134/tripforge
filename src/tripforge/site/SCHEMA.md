@@ -14,6 +14,7 @@ names of travellers who did not agree to appear; the build refuses the page if a
   "cur": "<ISO 4217>", "sym": "<symbol>", "homeCur": "<ISO 4217>", "homeSym": "<symbol>",   // features.fx turns on automatically when cur != homeCur
   "people": [{"k":"PR","n":"Pranay"}, {"k":"MU","n":"Muskan"}],  // k = short code stored on ledger entries
   "split": "equal" | "none",           // equal: per-person balances and ÷n key; none: one running total, no payer shown
+  "categories": {"food":["🍜","Food"],"stay":["🛏","Stay"]},  // optional; spend tags on ledger entries. Default: travel/stay/food/party/leisure/shopping/other
   "budget": 155000,                    // expected spend: per person when split=equal, whole trip when none
   "defaultTheme": "beach",             // party | party-drinks | party-smoke | beach | birthday | pg13 | mountain | city | plain | <custom>
   "visitorTheme": "pg13",              // used only when features.visitorRole
@@ -66,6 +67,7 @@ names of travellers who did not agree to appear; the build refuses the page if a
 - Live from the phone: FX (frankfurter.dev, open.er-api.com), weather (Open-Meteo), GPS distances, the ledger API.
 
 ## Workflow for an agent
+0. `tripforge site check trips/<slug>` is the deploy gate (syntax, private data, dist drift); run it before every upload.
 1. `tripforge site init trips/<slug>` -> skeleton with the brief's dates, people and currency.
 2. Fill `trip.json` from bookings + plan; run the research brief; `tripforge site merge-plans`; fetch photos into `site/img/`.
 3. `tripforge site build trips/<slug>` -> `site/dist/`. Fix anything the build refuses (JS syntax, private data).

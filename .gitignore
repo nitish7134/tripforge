@@ -10,6 +10,7 @@ cache/
 dist/
 out/
 trips/*
+!trips/example-vela-islands/
 trips/*/evidence/
 trips/*/out/plan.png
 trips/example-rajasthan-family/evidence/
@@ -20,3 +21,4 @@ trips/example-rajasthan-family/notes.md
 trips/example-thailand/evidence/
 trips/example-thailand/out/*.html
 trips/example-thailand/out/*.png
+trips/example-vela-islands/site/dist/

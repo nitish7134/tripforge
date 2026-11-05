@@ -143,6 +143,25 @@ def build(trip_dir: Path, bump: bool = True) -> Path:
     return dist
 
 
+def check(trip_dir: Path) -> list[str]:
+    """Build into a throwaway dir and report what would stop a deploy: JS syntax, private data, drift of the live dist from its sources.
+    Returns a list of problems (empty = clean). Never bumps the service-worker cache."""
+    import tempfile
+    site = trip_dir / "site"
+    problems: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        scratch = Path(tmp) / "trip"
+        shutil.copytree(trip_dir, scratch, ignore=shutil.ignore_patterns("dist"))
+        try:
+            fresh = build(scratch, bump=False)
+        except SystemExit as ex:  # syntax or privacy
+            return [str(ex)]
+        live = site / "dist" / "index.html"
+        if live.exists() and live.read_text() != (fresh / "index.html").read_text():
+            problems.append("site/dist/index.html differs from what trip.json + the template build now: run `tripforge site build`")
+    return problems
+
+
 def _syntax_check(js: str) -> None:
     node = shutil.which("node")
     if not node:

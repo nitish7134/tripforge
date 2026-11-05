@@ -1,0 +1,364 @@
+{
+ "trip": {
+  "slug": "example-vela-islands",
+  "name": "Vela",
+  "home": "HOM",
+  "start": "2027-03-10",
+  "end": "2027-03-15",
+  "tz": "Pacific/Auckland",
+  "homeTz": "Asia/Kolkata",
+  "cur": "VLD",
+  "sym": "V$",
+  "homeCur": "INR",
+  "homeSym": "₹",
+  "people": [
+   {
+    "k": "AR",
+    "n": "Ari"
+   },
+   {
+    "k": "BO",
+    "n": "Bo"
+   },
+   {
+    "k": "CY",
+    "n": "Cy"
+   }
+  ],
+  "split": "equal",
+  "categories": {
+   "travel": [
+    "✈️",
+    "Travel"
+   ],
+   "stay": [
+    "🛏",
+    "Stay"
+   ],
+   "food": [
+    "🍜",
+    "Food"
+   ],
+   "fun": [
+    "🎉",
+    "Fun"
+   ],
+   "other": [
+    "•",
+    "Other"
+   ]
+  },
+  "budget": 90000,
+  "defaultTheme": "beach",
+  "visitorTheme": "pg13",
+  "features": {
+   "visitorRole": true
+  },
+  "speakLang": "en",
+  "roadKmh": 30,
+  "greeting": "Kia ora",
+  "planSource": "Fictional example. Replace every line."
+ },
+ "data": {
+  "events": [
+   {
+    "kind": "fly",
+    "t": "2027-03-10T08:00:00+13:00",
+    "from": "HOM",
+    "to": "VLA",
+    "fc": "Home",
+    "tc": "Vela City",
+    "name": "Example Air EX 100",
+    "dep": "08:00",
+    "arr": "12:30",
+    "st": "ok",
+    "q": "Vela City Airport",
+    "note": "Be there by 06:00."
+   },
+   {
+    "kind": "stay",
+    "t": "2027-03-10T14:00:00+13:00",
+    "place": "Vela City",
+    "until": "2027-03-13T11:00:00+13:00",
+    "name": "Harbour Loft",
+    "st": "ok",
+    "note": "Check-in after 14:00."
+   },
+   {
+    "kind": "boat",
+    "t": "2027-03-13T09:00:00+13:00",
+    "from": "Vela City",
+    "to": "North Cay",
+    "fc": "Vela City",
+    "tc": "North Cay",
+    "name": "Morning ferry",
+    "dep": "09:00",
+    "arr": "10:10",
+    "st": "open",
+    "q": "Vela City ferry terminal"
+   },
+   {
+    "kind": "fly",
+    "t": "2027-03-15T18:00:00+13:00",
+    "from": "VLA",
+    "to": "HOM",
+    "fc": "Vela City",
+    "tc": "Home",
+    "name": "Example Air EX 101",
+    "dep": "18:00",
+    "arr": "22:30",
+    "st": "ok",
+    "q": "Vela City Airport"
+   }
+  ],
+  "stays": {
+   "loft": {
+    "name": "Harbour Loft",
+    "sub": "Vela City · 10 → 13 Mar · in 14:00, out 11:00",
+    "st": "ok",
+    "ref": "EXAMPLE1",
+    "book": "https://example.com/loft",
+    "site": "Example Stays",
+    "pics": 0,
+    "addr": "1 Harbour Row, Vela City",
+    "q": "1 Harbour Row, Vela City",
+    "la": -36.85,
+    "lo": 174.76,
+    "local": "1 Harbour Row"
+   },
+   "cay": {
+    "name": "Cay Cabins",
+    "sub": "North Cay · 13 → 15 Mar",
+    "st": "open",
+    "q": "North Cay pier",
+    "la": -36.5,
+    "lo": 174.9
+   }
+  },
+  "days": [
+   {
+    "d": "10",
+    "w": "Wed",
+    "where": "Vela City",
+    "wx": "vela",
+    "h": "Land, then the waterfront",
+    "p": "Drop bags, walk the harbour, dinner at the night market.",
+    "sleep": "loft",
+    "go": [
+     {
+      "n": "Night market",
+      "la": -36.84,
+      "lo": 174.77
+     }
+    ]
+   },
+   {
+    "d": "11",
+    "w": "Thu",
+    "where": "Vela City",
+    "wx": "vela",
+    "h": "Volcano morning",
+    "p": "Ferry to the island volcano, back for sunset drinks.",
+    "sleep": "loft",
+    "go": [
+     {
+      "n": "Volcano trailhead",
+      "la": -36.79,
+      "lo": 174.86
+     }
+    ],
+    "opts": [
+     "Ferry 09:15, V$45 return.",
+     "Guided walk V$90, 3 h."
+    ]
+   },
+   {
+    "d": "12",
+    "w": "Fri",
+    "where": "Vela City",
+    "wx": "vela",
+    "h": "Free day",
+    "p": "Pick from the plan.",
+    "sleep": "loft",
+    "go": []
+   },
+   {
+    "d": "13",
+    "w": "Sat",
+    "where": "North Cay",
+    "wx": "cay",
+    "h": "Ferry north",
+    "p": "Morning ferry, afternoon at the beach.",
+    "sleep": "cay",
+    "move": [
+     {
+      "kind": "boat",
+      "name": "Morning ferry",
+      "dep": "09:00",
+      "arr": "10:10",
+      "st": "open",
+      "sub": "V$60 per person",
+      "q": "Vela City ferry terminal"
+     }
+    ],
+    "go": [
+     {
+      "n": "Long Beach",
+      "la": -36.48,
+      "lo": 174.92
+     }
+    ]
+   },
+   {
+    "d": "14",
+    "w": "Sun",
+    "where": "North Cay",
+    "wx": "cay",
+    "h": "Reef day",
+    "p": "Snorkel trip, early night.",
+    "sleep": "cay",
+    "go": [
+     {
+      "n": "Reef pier",
+      "la": -36.47,
+      "lo": 174.95
+     }
+    ]
+   },
+   {
+    "d": "15",
+    "w": "Mon",
+    "where": "Home",
+    "wx": "vela",
+    "h": "Back to the city, fly home",
+    "p": "Ferry back by noon, airport by 16:00.",
+    "sleep": null,
+    "go": [
+     {
+      "n": "Vela City Airport",
+      "la": -37.0,
+      "lo": 174.79
+     }
+    ]
+   }
+  ],
+  "tix": {},
+  "cred": {},
+  "cities": [
+   {
+    "k": "vela",
+    "n": "Vela City",
+    "la": -36.85,
+    "lo": 174.76
+   },
+   {
+    "k": "cay",
+    "n": "North Cay",
+    "la": -36.5,
+    "lo": 174.9
+   }
+  ],
+  "typical": {
+   "vela": "Typical March · 23° / 15° · late summer",
+   "cay": "Typical March · 24° / 17° · sea 21°"
+  },
+  "todo": [
+   "Travel insurance for all three",
+   "Download offline maps"
+  ],
+  "pack": [
+   "Reef-safe sunscreen",
+   "Light rain shell"
+  ],
+  "driver": [
+   {
+    "cap": "Vela City, 10 to 13 Mar",
+    "name": "Harbour Loft",
+    "local": "1 Harbour Row",
+    "en": "Harbour Loft, 1 Harbour Row, Vela City",
+    "q": "1 Harbour Row, Vela City"
+   }
+  ],
+  "kit": [
+   {
+    "title": "Emergency, tap to call",
+    "kind": "call",
+    "rows": [
+     {
+      "t": "Emergency",
+      "d": "police, fire, ambulance",
+      "tel": "111",
+      "telLabel": "111"
+     }
+    ]
+   }
+  ],
+  "smarts": [
+   "Agree taxi fares before boarding.",
+   "Carry a photocopy of your passport."
+  ],
+  "phrases": [
+   [
+    "Kia ora",
+    "kee-a or-a",
+    "hello"
+   ],
+   [
+    "Ka pai",
+    "ka pie",
+    "good, thanks"
+   ]
+  ],
+  "quick": [
+   20,
+   50,
+   100,
+   200,
+   500
+  ],
+  "spendExample": "ferry tickets",
+  "fares": {
+   "title": "Taxi guide",
+   "rows": [
+    [
+     "Airport to Harbour Loft",
+     "60–80"
+    ],
+    [
+     "Ferry terminal, each way",
+     "15–20"
+    ]
+   ],
+   "note": "Metered taxis; ranges from the operator page."
+  },
+  "budget": {
+   "rows": [
+    [
+     "Flights",
+     "₹45,000"
+    ],
+    [
+     "Stays",
+     "₹30,000"
+    ],
+    [
+     "Food and fun",
+     "₹15,000"
+    ]
+   ],
+   "total": "₹90,000",
+   "note": "Per person."
+  },
+  "runway": {
+   "headsup": [
+    "Ferry north is not booked yet."
+   ]
+  },
+  "lockSub": "Harbour · Cay",
+  "phrasesTitle": "Say it in Vela, tap to hear"
+ },
+ "private_patterns": [
+  "EXAMPLE-SECRET"
+ ],
+ "_help": "Fictional example used by tests. See src/tripforge/site/SCHEMA.md."
+}

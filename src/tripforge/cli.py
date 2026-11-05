@@ -186,6 +186,18 @@ def site_build(trip_dir: Path = typer.Argument(..., help="trips/<slug>"), no_bum
     print(f"built {dist} ({(dist / 'index.html').stat().st_size // 1024} KB page)")
 
 
+@site_app.command("check")
+def site_check(trip_dir: Path = typer.Argument(..., help="trips/<slug>")):
+    """Deploy gate: JS syntax, private-data patterns, and drift of site/dist from trip.json. Exit 1 on any problem."""
+    from tripforge.site import check
+    probs = check(trip_dir)
+    for pr in probs:
+        print(f"FAIL {pr}")
+    if probs:
+        raise typer.Exit(1)
+    print("ok: builds clean, no private data, dist matches sources")
+
+
 @site_app.command("merge-plans")
 def site_merge(trip_dir: Path = typer.Argument(..., help="trips/<slug>")):
     """research/*.json -> site/data/plans.json"""
