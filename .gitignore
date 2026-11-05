@@ -2,7 +2,6 @@
 !trips/example-thailand/
 !trips/example-lisbon-morocco/
 !trips/example-rajasthan-family/
-!trips/example-vela-islands/
 # personal trips live outside the repo
 *.pyc
 .venv/
@@ -11,6 +10,7 @@ cache/
 dist/
 out/
 trips/*
+!trips/example-vela-islands/
 trips/*/evidence/
 trips/*/out/plan.png
 trips/example-rajasthan-family/evidence/
