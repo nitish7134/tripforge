@@ -100,6 +100,8 @@ def build(trip_dir: Path, bump: bool = True) -> Path:
     site = trip_dir / "site"
     cfg = json.loads((site / "trip.json").read_text())
     t = _derive(cfg["trip"], cfg.get("data", {}).get("events")); d = _data_defaults(cfg.get("data", {}), t)
+    if not (site / "img" / f"{d['runway']['img']}.jpg").exists():
+        d["runway"]["img"] = ""   # no photo to show: the template omits the image instead of requesting a missing file
     dist = site / "dist"; dist.mkdir(parents=True, exist_ok=True)
     env = Environment(loader=FileSystemLoader(str(HERE)), undefined=ChainableUndefined, autoescape=False)
     env.filters["urlencode"] = lambda s: __import__("urllib.parse").parse.quote(str(s))

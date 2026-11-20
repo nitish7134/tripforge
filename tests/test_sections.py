@@ -63,3 +63,39 @@ def test_flight_renderer_marks_unverified_legs():
     assert "unverified" in _render("flightPlan", plan)
     plan["verified"] = True
     assert "unverified" not in _render("flightPlan", plan)
+
+
+def test_stays_options_order_gives_top_pick_and_runner_up():
+    out = _render("stays", {"places": [{"name": "P", "options": [
+        {"title": "First", "url": "https://example.com/1", "price_night_inr": 6000, "rating": 4.8, "verified": "partial: price estimated"},
+        {"title": "Second", "url": "https://example.com/2"}, {"title": "Third", "url": "https://example.com/3"}]}]})
+    assert "Top pick" in out and "Runner-up" in out and "More options (1)" in out
+    assert "INR 6,000 a night" in out and "price unverified" in out and 'target="_blank"' in out and "Checked: partial" in out
+
+
+def test_flight_renderer_proxy_schedule_pill():
+    plan = {"options": [{"id": "o", "label": "O", "legs": [{"who": "A", "dir": "Out", "flight": "XX 1", "from": "A", "to": "B", "depL": "10:00", "arrL": "12:00", "verified": "proxy"}], "results": [], "total": 0}]}
+    out = _render("flightPlan", plan)
+    assert "proxy schedule" in out and "unverified" not in out
+
+
+def test_build_without_photos_or_checklists_requests_no_missing_image(tmp_path):
+    from tripforge.site import build
+    dst = _trip(tmp_path, [])
+    cfg = json.loads((dst / "site" / "trip.json").read_text()); cfg["data"]["todo"] = []; cfg["data"]["pack"] = []
+    (dst / "site" / "trip.json").write_text(json.dumps(cfg))
+    html = (build(dst) / "index.html").read_text()
+    assert "lockbg.jpg" not in html and "if(!document.getElementById(id))return" in html
+
+
+def test_stays_string_picks_become_the_reason_for_the_first_two_options():
+    out = _render("stays", {"places": [{"name": "P", "top_pick": "most reviews", "runner_up": "pricier", "area_comparison": "Area note",
+                                         "options": [{"title": "One", "url": "https://e.com/1"}, {"title": "Two", "url": "https://e.com/2"}, {"title": "Three"}]}]})
+    assert "Top pick" in out and "most reviews" in out and "Runner-up" in out and "pricier" in out and "Area note" in out
+    assert "More options (1)" in out and out.count("One") == 1
+
+
+def test_section_classes_do_not_collide_with_page_header_class():
+    """`.top` is the page header (flex row); a section element using it renders as squeezed columns."""
+    out = _render("stays", {"places": [{"name": "P", "options": [{"title": "One"}]}]})
+    assert 'class="fl top"' not in out and "fl pick" in out

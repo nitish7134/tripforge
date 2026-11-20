@@ -85,3 +85,9 @@ def test_sync_writes_evaluated_section_and_gate_blocks_recommended(tmp_path):
     assert check(dst) == []
     (dst / "flights.json").write_text(json.dumps({"rules": RULES, "options": [{**opt("early", "2026-11-21T19:00+07:00", "2026-11-21T18:30+07:00"), "recommended": True}]}))
     assert any("B not before A" in x for x in check(dst))
+
+
+def test_author_chosen_best_wins():
+    p = evaluate({"rules": RULES, "best": "dear", "options": [opt("cheap", "2026-11-21T18:10+07:00", "2026-11-21T18:30+07:00", price=1), opt("dear", "2026-11-21T18:10+07:00", "2026-11-21T18:30+07:00", price=9)]})
+    assert p["best"] == "dear"
+    assert evaluate({"rules": RULES, "options": p["options"]})["best"] == "cheap"
