@@ -73,3 +73,23 @@ names of travellers who did not agree to appear; the build refuses the page if a
 3. `tripforge site build trips/<slug>` -> `site/dist/`. Fix anything the build refuses (JS syntax, private data).
 4. Screenshot at 390px with Playwright, check console errors, look at the pixels.
 5. `tripforge site host trips/<slug>` prints the server steps for the hosting owner.
+
+## `data.flightPlan` (optional): per-person flights with rule checks
+Use when travellers fly separately (different origins or return cities). Each option is one complete set of legs;
+every option is checked against `rules`, shown on the Runway page with ✓ / ! / ✗ per rule, and the best option
+(fewest hard failures, then cheapest) is marked. See `src/tripforge/site/flightplan.py`.
+```jsonc
+"flightPlan": {
+  "title": "Flights", "note": "Prices: source and fetch time",
+  "rules": [
+    {"type": "not_earlier",   "leg": "out-b", "than": "out-a", "label": "B lands no earlier than A"},
+    {"type": "within",        "legs": ["out-a", "out-b"], "minutes": 30, "soft": true, "label": "Land together"},   // soft: warning only
+    {"type": "arrive_before", "leg": "back-b", "time": "19:00", "label": "B home before 19:00"},                 // local arrival time
+    {"type": "arrive_on",     "leg": "back-b", "date": "2026-11-24", "label": "Same-day return"}
+  ],
+  "options": [{"id": "day", "label": "Daytime pair", "recommended": true,   // recommended options must pass hard rules or `site check` fails
+    "legs": [{"role": "out-a", "who": "A", "dir": "Out", "flight": "XX 123", "from": "AAA", "to": "BBB",
+              "dep": "2026-11-21T12:20+05:30", "arr": "2026-11-21T18:10+07:00", "price": 18780}]}]
+}
+```
+`dep` / `arr` are ISO times with each airport's own offset, so cross-timezone comparisons are exact.

@@ -91,6 +91,9 @@ def _data_defaults(d: dict, t: dict) -> dict:
     d.setdefault("quick", [100, 300, 500, 1000, 2500])
     d.setdefault("spendExample", "dinner")
     d.setdefault("kit", [])
+    if d.get("flightPlan"):
+        from .flightplan import evaluate
+        d["flightPlan"] = evaluate(d["flightPlan"])
     d.setdefault("templates", [])
     d.setdefault("foot", "Prices marked as ranges are estimates from operator and guide pages, not quotes. Weather, flight status and the ledger update whenever the page is online.")
     return d
@@ -156,6 +159,8 @@ def check(trip_dir: Path) -> list[str]:
             fresh = build(scratch, bump=False)
         except SystemExit as ex:  # syntax or privacy
             return [str(ex)]
+        from .flightplan import problems as fp_problems
+        problems += fp_problems(json.loads((site / "trip.json").read_text()).get("data", {}).get("flightPlan") or {})
         live = site / "dist" / "index.html"
         if live.exists() and live.read_text() != (fresh / "index.html").read_text():
             problems.append("site/dist/index.html differs from what trip.json + the template build now: run `tripforge site build`")
