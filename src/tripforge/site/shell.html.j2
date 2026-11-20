@@ -35,7 +35,7 @@
     {% if d.runway.headsup %}<h2>Heads-up</h2><div class="panel">{% for h in d.runway.headsup %}<div class="kv"><div><b>{{ h.t }}</b><div class="muted">{{ h.d }}</div></div>{% if h.u %}<a href="{{ h.u }}" target="_blank">{{ h.l or 'link' }}</a>{% else %}<span></span>{% endif %}</div>{% endfor %}</div>{% endif %}
     {% if d.runway.open_table %}<h2>{{ d.runway.open_table.title }}</h2><div class="panel"><table><tr>{% for h in d.runway.open_table.head %}<th{% if loop.last %} class="r"{% endif %}>{{ h }}</th>{% endfor %}</tr>{% for r in d.runway.open_table.rows %}<tr>{% for c in r %}<td{% if loop.last %} class="r num"{% endif %}>{{ c }}</td>{% endfor %}</tr>{% endfor %}</table>{% if d.runway.open_table.note %}<p class="muted">{{ d.runway.open_table.note }}</p>{% endif %}</div>{% endif %}
     {% if d.sections %}<div id="sections"></div>{% endif %}
-    {% if d.todo %}<details class="fold"><summary>Before we fly<small id="cnt-todo"></small></summary><div class="panel chk"><ul id="todo"></ul><button class="ghost" style="margin-top:10px" onclick="resetChk('todo')">Reset</button></div></details>{% endif %}
+    {% if d.todo %}<details class="fold"><summary>{{ d.todoTitle or "Before we fly" }}<small id="cnt-todo"></small></summary><div class="panel chk"><ul id="todo"></ul><button class="ghost" style="margin-top:10px" onclick="resetChk('todo')">Reset</button></div></details>{% endif %}
     {% if d.pack %}<details class="fold"><summary>Pack<small id="cnt-pack"></small></summary><div class="panel chk"><ul id="pack"></ul><button class="ghost" style="margin-top:10px" onclick="resetChk('pack')">Reset</button></div></details>{% endif %}
   </article>
   </div>

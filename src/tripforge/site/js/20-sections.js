@@ -10,13 +10,16 @@ function secAuto(v,depth=0){ /* tolerant fallback for any JSON shape: lists beco
   return(head?`<div class="kv"><b>${esc(head)}</b></div>`:'')+rest}
  return esc(v)}
 function secFlights(j){
- const sym=j.sym||TRIP.sym||'';const opts=j.options||[];
- return opts.map(o=>`<div class="panel fp${o.id===j.best?' best':''}">
+ const sym=j.sym||TRIP.sym||'';const all=j.options||[];const ch=all.find(o=>o.id===j.chosen);
+ const opts=ch?[ch]:all;   /* a `chosen` option is shown alone on top; the rest fold under Other options */
+ const card=o=>`<div class="panel fp${o.id===(j.chosen||j.best)?' best':''}">
   <div class="kv"><b>${esc(o.label)}</b><span>${o.fails?`<span class="pill bad">${o.fails} rule${o.fails>1?'s':''} broken</span>`:'<span class="pill ok">rules met</span>'}${o.warns?` <span class="pill open">${o.warns} close call</span>`:''}</span></div>
   ${(o.legs||[]).map(l=>`<div class="fl"><small>${esc(l.who)} · ${esc(l.dir)}</small><div><b>${esc(l.flight)}</b> ${esc(l.from)} → ${esc(l.to)} · ${esc(l.depL)} → ${esc(l.arrL)}${(()=>{const v=l.verified??o.verified??j.verified;return v===true?'':' '+secEst().replace('>est<',v==='proxy'?'>proxy schedule<':'>unverified<')})()}${l.price?` · <span class="num">${esc(sym)}${secFmt(l.price)}</span>`:''}</div></div>`).join('')}
   ${(o.results||[]).map(r=>`<div class="fr ${r.ok?'ok':r.soft?'warn':'bad'}"><span>${r.ok?'✓':r.soft?'!':'✗'}</span>${esc(r.label)}: ${esc(r.detail)}</div>`).join('')}
-  <div class="kv"><span class="muted">Total, all legs${o.id===j.best?' · best pick':''}</span><b class="num">${esc(sym)}${secFmt(o.total||0)}</b></div>
-  ${o.note?`<p class="muted">${esc(o.note)}</p>`:''}</div>`).join('')+(j.note?`<p class="muted">${esc(j.note)}</p>`:'')}
+  <div class="kv"><span class="muted">Total, all legs${o.id===j.chosen?' · chosen':o.id===j.best?' · best pick':''}</span><b class="num">${esc(sym)}${secFmt(o.total||0)}</b></div>
+  ${o.note?`<p class="muted">${esc(o.note)}</p>`:''}</div>`;
+ const rest=ch?all.filter(o=>o!==ch):[];
+ return (ch?`<div class="kv"><span class="pill ok">chosen plan</span></div>`:'')+opts.map(card).join('')+(rest.length?`<details class="fold"><summary>Other options (${rest.length})</summary>${rest.map(card).join('')}</details>`:'')+(j.note?`<p class="muted">${esc(j.note)}</p>`:'')}
 
 const secLink=(u,t)=>/^https?:\/\//.test(u||'')?` <a href="${esc(u)}" target="_blank" rel="noopener">${esc(t||'link')}</a>`:'';
 const secMoney=o=>Object.entries(o).filter(([k,v])=>/^(est_|price_|total_)?[a-z]{3}$/.test(k)&&/^(inr|thb|usd|eur|gbp|aed|sgd|myr|idr|vnd|jpy)$/.test(k.slice(-3))&&v).map(([k,v])=>k.slice(-3).toUpperCase()+' '+esc(v)).join(' · ');
@@ -49,11 +52,24 @@ function secStays(j){ /* kind "stays": places[{name|place, dates, options[]}]; o
   const top=tp&&typeof tp==='object'?tp:(opts[0]&&typeof tp==='string'?{...opts[0],why:tp}:opts[0]);const ru=rp&&typeof rp==='object'?rp:(opts[1]&&typeof rp==='string'?{...opts[1],why:rp}:(tp&&typeof tp==='object'?null:opts[1]));
   const rest=opts.filter(o=>o!==top&&o!==ru&&o!==opts[0]&&!(rp&&o===opts[1]));
   return`<div class="panel fp best"><div class="kv"><b>${esc(pl.name||pl.place||'')}</b><span class="muted">${esc(pl.dates||'')}${pl.nights?' · '+esc(pl.nights)+' night'+(pl.nights>1?'s':''):''}</span></div>${pl.base_area?`<div class="muted">Base: ${esc(pl.base_area)}</div>`:''}${card(top,'Top pick',true)}${card(ru,'Runner-up')}${rest.length?`<details class="fold"><summary>More options (${rest.length})</summary>${rest.map(o=>card(o,'Option')).join('')}</details>`:''}${pl.area_comparison?`<p class="muted">${esc(pl.area_comparison)}</p>`:''}${pl.note?`<p class="muted">${esc(pl.note)}</p>`:''}</div>`}).join('')+((j.assumptions||[]).length?`<details class="fold"><summary>Assumptions</summary>${(j.assumptions).map(x=>`<div class="fr"><span>•</span>${esc(x)}</div>`).join('')}</details>`:'')+(j.note?`<p class="muted">${esc(j.note)}</p>`:'')}
-const SEC_RENDER={flightPlan:secFlights,itinerary:secItinerary,stays:secStays};
+
+function secBook(j){ /* kind "book": legs|rows|items[{leg|route|who, flight, price|price_<cur>, available|availability|status, url|book_url|link, checked_at}], total|total_<cur> */
+ const rows=j.legs||j.rows||j.items||j.flights||(Array.isArray(j)?j:[]);const sym=j.sym||'';
+ const avail=v=>{if(v===true||/^(ok|yes|open|available|seats? available|bookable)/i.test(String(v)))return['ok',v===true?'available':String(v)];
+  if(v===false||/(sold ?out|unavailable|not available|full|cancel)/i.test(String(v)))return['bad',v===false?'not available':String(v)];
+  return['open',v==null||v===''?'not checked':String(v)]};
+ const price=x=>{const k=Object.keys(x).find(k=>/^price(_[a-z]{3})?$/.test(k)&&x[k]!=null&&typeof x[k]!=='object');if(!k)return'';const c=k.length>5?k.slice(-3).toUpperCase()+' ':sym;return c+secFmt(x[k])};
+ const out=rows.map(x=>{const [cls,txt]=avail(x.available??x.availability??x.status);const url=x.url||x.book_url||x.booking_url||x.link;
+  const was=x.previous_price_inr??x.old_price_inr??x.was;
+  return`<div class="fl"><small>${esc(x.who||x.leg||'')}${x.route?' · '+esc(x.route):''}${x.date?' · '+esc(x.date):''}</small><div><b>${esc(x.flight||x.flight_no||x.name||'')}</b>${x.dep?` ${esc(x.dep)}${x.arr?' → '+esc(x.arr):''}`:''} <span class="pill ${cls}">${esc(txt)}</span>${price(x)?` · <span class="num">${price(x)}</span>`:''}${was!=null?` <span class="muted">(was ${secFmt(was)})</span>`:''}${/^https?:\/\//.test(url||'')?` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">book</a>`:''}</div>${x.checked_at?`<div class="muted">checked ${esc(x.checked_at)}</div>`:''}${x.note?`<div class="muted">${esc(x.note)}</div>`:''}</div>`}).join('');
+ const tk=Object.keys(j).find(k=>/^(new_)?total(_[a-z]{3})?$/.test(k)&&j[k]!=null&&typeof j[k]!=='object');
+ const total=tk?(tk.match(/_([a-z]{3})$/)?tk.slice(-3).toUpperCase()+' ':sym)+secFmt(j[tk]):'';
+ return`<div class="panel fp best">${out||'<p class="muted">No legs in the file yet.</p>'}${total?`<div class="kv"><b>New total, all legs</b><b class="num">${total}</b></div>`:''}${j.checked_at?`<p class="muted">Checked ${esc(j.checked_at)}${j.source?' · '+esc(j.source):''}</p>`:''}<p class="muted">Not booked. Prices and seats change; confirm on the booking page before paying.</p>${j.note?`<p class="muted">${esc(j.note)}</p>`:''}</div>`}
+const SEC_RENDER={book:secBook,flightPlan:secFlights,itinerary:secItinerary,stays:secStays};
 async function secLoad(s,box){
  const body=box.querySelector('.sb'),ac=new AbortController(),to=setTimeout(()=>ac.abort(),SEC_TTL);
  try{const r=await fetch(`data/${s.id}.json`,{cache:'no-store',signal:ac.signal});
-  if(r.status===404){if(!box.dataset.ok)body.innerHTML='<p class="muted">Coming soon. This part is still being researched.</p>';return}
+  if(r.status===404){if(!box.dataset.ok)body.innerHTML=`<p class="muted">${esc(s.pending||'Coming soon. This part is still being researched.')}</p>`;return}
   if(!r.ok)throw new Error(r.status);
   const txt=await r.text();if(txt===box.dataset.ok)return;   // unchanged: no re-render
   const j=JSON.parse(txt);body.innerHTML=(SEC_RENDER[s.kind]||secAuto)(j)||'<p class="muted">Empty.</p>';box.dataset.ok=txt}

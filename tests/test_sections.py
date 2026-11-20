@@ -99,3 +99,20 @@ def test_section_classes_do_not_collide_with_page_header_class():
     """`.top` is the page header (flex row); a section element using it renders as squeezed columns."""
     out = _render("stays", {"places": [{"name": "P", "options": [{"title": "One"}]}]})
     assert 'class="fl top"' not in out and "fl pick" in out
+
+
+def test_chosen_flight_option_on_top_rest_folded():
+    mk = lambda i: {"id": i, "label": "Opt " + i, "legs": [], "results": [], "total": 1}
+    out = _render("flightPlan", {"chosen": "b", "options": [mk("a"), mk("b"), mk("c")]})
+    assert "chosen plan" in out and "Other options (2)" in out
+    assert out.index("Opt b") < out.index("Other options") < out.index("Opt a")
+    assert "Other options" not in _render("flightPlan", {"options": [mk("a"), mk("b")]})
+
+
+def test_book_renderer_rows_badges_links_total():
+    out = _render("book", {"checked_at": "22:10 IST", "total_inr": 93000, "legs": [
+        {"who": "Delhi", "flight": "XX 1", "price_inr": 27000, "available": True, "url": "https://air.example/b"},
+        {"who": "Mumbai", "flight": "YY 2", "price_inr": 18000, "availability": "sold out"},
+        {"who": "Home", "flight": "ZZ 3", "price": 5}]})
+    assert "INR 27,000" in out and "pill ok" in out and "pill bad" in out and "not checked" in out
+    assert 'href="https://air.example/b"' in out and 'target="_blank"' in out and "INR 93,000" in out and "Not booked" in out
