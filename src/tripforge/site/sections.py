@@ -19,7 +19,12 @@ def _flight_plan(raw: dict) -> dict:
     return evaluate(raw)
 
 
-PROCESSORS = {"flightPlan": _flight_plan}   # kind -> raw dict -> page JSON; other kinds are passed through unchanged
+def _day_guide(raw: dict) -> dict:
+    from .dayguide import process
+    return process(raw)
+
+
+PROCESSORS = {"flightPlan": _flight_plan, "dayGuide": _day_guide}   # kind -> raw dict -> page JSON; other kinds are passed through unchanged
 
 
 def declared(trip_dir: Path) -> list[dict]:

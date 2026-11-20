@@ -82,8 +82,26 @@ names of travellers who did not agree to appear; the build refuses the page if a
 `tripforge site sync trips/<slug>` (add `--watch 30` to keep going) prepares each `src` into `site/data/<id>.json` concurrently; copy that folder
 to the host and the page picks it up without a rebuild. The page fetches every section on its own request and refresh clock (`every`
 seconds, default 300, plus when the tab returns), with an 8 s timeout, so one slow or missing section shows "Coming soon" while the rest work.
-Kinds: `flightPlan` (below); `itinerary` ({verdict, days[{label, assumption, blocks[{time,title,place,why,link}]}], stays[{place, options[]}], transfer, getting_around, rules_to_flag, visa, budget{lines,total_inr}, unverified[], assumptions[]}; estimates carry a visible "est" pill); `stays` ({places:[{place, dates, top_pick:{name,url,price/est_inr,rating,area,why,verified}, runner_up:{...}}]}; every listing links out and shows "unverified" unless `verified: true`; once it loads it replaces the itinerary's estimated stays); `book` ({legs:[{who, flight, price_<cur>, available|availability, url, checked_at}], total_<cur>, checked_at}: availability pill, booking link, new total); `brief` ({summary{who, dates, route, total, book_first[{t,u,d}], checks[{t,ok}]}, assumptions[{t,d}|text], changes[{t,d}], budget{rows[[label,value,note]], total, note}}: the assumptions box, a folded "What changes if" list and a rough budget); a section may set `pending` (text shown while its file is missing); anything else is rendered generically (lists become cards, objects become lines, links become links).
+Kinds: `dayGuide` (below); `flightPlan` (below); `itinerary` ({verdict, days[{label, assumption, blocks[{time,title,place,why,link}]}], stays[{place, options[]}], transfer, getting_around, rules_to_flag, visa, budget{lines,total_inr}, unverified[], assumptions[]}; estimates carry a visible "est" pill); `stays` ({places:[{place, dates, top_pick:{name,url,price/est_inr,rating,area,why,verified}, runner_up:{...}}]}; every listing links out and shows "unverified" unless `verified: true`; once it loads it replaces the itinerary's estimated stays); `book` ({legs:[{who, flight, price_<cur>, available|availability, url, checked_at}], total_<cur>, checked_at}: availability pill, booking link, new total); `brief` ({summary{who, dates, route, total, book_first[{t,u,d}], checks[{t,ok}]}, assumptions[{t,d}|text], changes[{t,d}], budget{rows[[label,value,note]], total, note}}: the assumptions box, a folded "What changes if" list and a rough budget); a section may set `pending` (text shown while its file is missing); anything else is rendered generically (lists become cards, objects become lines, links become links).
 Add a kind by adding a renderer to `SEC_RENDER` in `js/20-sections.js` and, if the source needs preparing, a processor in `sections.py`.
+
+## `dayGuide` section: hour-by-hour days with places, transport, meals, backups and budgets
+Use for a real daily guide. The author writes local-currency numbers and names; `dayguide.py` converts with the dated `fx`, builds a Google Maps search link for every item with a `name` (+ `area`) unless it gives its own `maps` pin, and refuses bad times, non-https links and a missing rate date.
+```jsonc
+{"fx": {"from": "EUR", "to": "USD", "rate": 1.08, "date": "1 Jan 2030", "source": "https://..."},   // required, dated
+ "intro": "one line",
+ "days": [{"id": "d1", "tab": "Sat 21", "date": "2026-11-21", "title": "Sat 21 Nov: ...", "summary": "...", "warn": ["red line"],
+   "timeline": [{"time": "18:10", "end": "18:50", "title": "Land", "kind": "fly|move|eat|drink|beach|see|rest|book|night",
+                 "name": "place", "area": "district", "why": "one line", "hours": "09:00-17:00", "cost": [10, 20],   // number or [low, high], local currency
+                 "how": "text" | {"text": "Airport train", "mins": 30, "cost": 5}, "tip": "...", "url": "booking/info https", "src": "evidence https", "verified": false}],
+   "eat": [{"meal": "Dinner", "name": "...", "area": "...", "why": "...", "order": [{"dish": "house special", "cost": 12}], "hours": "...", "cost": [300, 600]}],
+   "nightlife": [{"time": "22:00", "name": "...", "entry": [300, 500], "drinks": [200, 350], "dress": "...", "safety": "..."}],
+   "do": [{"name": "...", "kind": "beach", "why": "...", "url": "https://...", "cost": 1700}],
+   "backup": {"title": "Rain or low-energy backup", "text": "...", "items": [{"name": "...", "cost": 150}]},
+   "budget": {"rows": [{"item": "Food", "cost": [800, 1500]}, {"item": "Airport train", "home": 250}], "note": "..."},   // cost = local currency, home = already home currency; totals are computed
+   "book": [{"t": "Boat tour", "u": "https://...", "d": "refundable"}], "notes": ["..."]}]}
+```
+Times must be HH:MM and ascending; a small hour after 18:00 counts as next day. Every cost is shown as "est ..."; an item carries the "unverified" badge unless it says `verified: true` (read in its cited `src`). The page opens on today's day when today is a trip day (trip timezone), else the first, and a day selector switches days without scrolling.
 
 ## `flightPlan` section: per-person flights with rule checks
 Use when travellers fly separately (different origins or return cities). Each option is one complete set of legs;

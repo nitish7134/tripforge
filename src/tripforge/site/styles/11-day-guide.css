@@ -1,0 +1,19 @@
+/* dayGuide: day selector, aligned timeline rows, small meta lines; wraps at 360px, never scrolls sideways */
+.dg-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.dg-tab{border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;color:var(--ink-2);min-height:40px}
+.dg-tab[aria-pressed=true]{background:rgba(255,176,32,.16);border-color:transparent;color:var(--mari);font-weight:600}
+.dg-tab small{font-size:11px;opacity:.85}
+.dg-day[hidden]{display:none}
+.dg-row{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.dg-row:first-child{border-top:0;padding-top:0}
+.dg-t{font-variant-numeric:tabular-nums;font-weight:600;line-height:1.25}
+.dg-t small{display:block;color:var(--ink-2);font-weight:400;font-size:12px}
+.dg-b{min-width:0;overflow-wrap:anywhere}
+.dg-pl{color:var(--ink-2);font-size:13px}
+.dg-m{font-size:13.5px;color:var(--ink-2);padding-top:2px}
+.dg-m span{display:inline-block;min-width:5.2em;color:var(--ink);opacity:.7;font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-right:6px}
+.dg-m i{font-style:normal;opacity:.85}
+.dg-l{padding-top:4px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px}
+.dg-map::before{content:"📍 "}
+.dg .fold summary{min-height:36px;align-items:center}
+@media (max-width:420px){.dg-row{grid-template-columns:3.6rem minmax(0,1fr);gap:8px}.dg .panel{padding:12px 12px}}

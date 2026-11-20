@@ -11,6 +11,7 @@
 08-daily-plan-from-data-plans-json
 09-tabs
 10-flights
+11-day-guide
 90-themes
 [js]
 03-trip-inject
