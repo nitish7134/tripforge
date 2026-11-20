@@ -198,6 +198,26 @@ def site_check(trip_dir: Path = typer.Argument(..., help="trips/<slug>")):
     print("ok: builds clean, no private data, dist matches sources")
 
 
+@site_app.command("sync")
+def site_sync(trip_dir: Path = typer.Argument(..., help="trips/<slug>"),
+              watch: int = typer.Option(0, "--watch", help="re-run every N seconds and print only changes (0 = once)"),
+              workers: int = typer.Option(8, "--workers")):
+    """Prepare every `data.sections` source into site/data/<id>.json concurrently; a missing or broken source only affects its own section."""
+    import time
+    from tripforge.site.sections import sync
+    last = None
+    while True:
+        rows = sync(trip_dir, workers)
+        shown = [(r["id"], r["state"], r["msg"]) for r in rows]
+        if shown != last or any(r["state"] == "updated" for r in rows):
+            for r in rows:
+                print(f"{r['id']}: {r['state']} {r['msg']} ({r['ms']} ms)".rstrip())
+        last = shown
+        if not watch:
+            raise typer.Exit(1 if any(r["state"] == "error" for r in rows) else 0)
+        time.sleep(watch)
+
+
 @site_app.command("merge-plans")
 def site_merge(trip_dir: Path = typer.Argument(..., help="trips/<slug>")):
     """research/*.json -> site/data/plans.json"""

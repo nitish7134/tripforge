@@ -74,12 +74,23 @@ names of travellers who did not agree to appear; the build refuses the page if a
 4. Screenshot at 390px with Playwright, check console errors, look at the pixels.
 5. `tripforge site host trips/<slug>` prints the server steps for the hosting owner.
 
-## `data.flightPlan` (optional): per-person flights with rule checks
-Use when travellers fly separately (different origins or return cities). Each option is one complete set of legs;
-every option is checked against `rules`, shown on the Runway page with ✓ / ! / ✗ per rule, and the best option
-(fewest hard failures, then cheapest) is marked. See `src/tripforge/site/flightplan.py`.
+## `data.sections` (optional): independent parts of the page, each its own JSON file
 ```jsonc
-"flightPlan": {
+"sections": [{"id": "flights", "title": "Flights", "kind": "flightPlan", "src": "flights.json", "every": 300},
+             {"id": "itinerary", "title": "Itinerary", "src": "itinerary.json"}]   // src: path relative to trips/<slug>/
+```
+`tripforge site sync trips/<slug>` (add `--watch 30` to keep going) prepares each `src` into `site/data/<id>.json` concurrently; copy that folder
+to the host and the page picks it up without a rebuild. The page fetches every section on its own request and refresh clock (`every`
+seconds, default 300, plus when the tab returns), with an 8 s timeout, so one slow or missing section shows "Coming soon" while the rest work.
+Kinds: `flightPlan` (below); anything else is rendered generically (lists become cards, objects become lines, links become links).
+Add a kind by adding a renderer to `SEC_RENDER` in `js/20-sections.js` and, if the source needs preparing, a processor in `sections.py`.
+
+## `flightPlan` section: per-person flights with rule checks
+Use when travellers fly separately (different origins or return cities). Each option is one complete set of legs;
+every option is checked against `rules`, shown with ✓ / ! / ✗ per rule, and the best option
+(fewest hard failures, then cheapest) is marked. See `src/tripforge/site/flightplan.py`. `site check` fails when an option marked `recommended` breaks a hard rule.
+```jsonc
+{
   "title": "Flights", "note": "Prices: source and fetch time",
   "rules": [
     {"type": "not_earlier",   "leg": "out-b", "than": "out-a", "label": "B lands no earlier than A"},

@@ -64,14 +64,24 @@ def test_gate_only_blocks_recommended_options():
     assert len(problems({"rules": RULES, "options": [bad]})) == 1
 
 
-def test_build_renders_section_and_check_gates(tmp_path):
+def _trip_with_section(tmp_path, options):
     dst = tmp_path / "t"; shutil.copytree(EX, dst); shutil.rmtree(dst / "site" / "dist", ignore_errors=True)
     cfg = json.loads((dst / "site" / "trip.json").read_text())
-    cfg["data"]["flightPlan"] = {"title": "Flights", "rules": RULES, "options": [opt("early", "2026-11-21T19:00+07:00", "2026-11-21T18:30+07:00")]}
+    cfg["data"]["sections"] = [{"id": "flights", "title": "Flights", "kind": "flightPlan", "src": "flights.json"}]
     (dst / "site" / "trip.json").write_text(json.dumps(cfg))
+    (dst / "flights.json").write_text(json.dumps({"rules": RULES, "options": options}))
+    return dst
+
+
+def test_sync_writes_evaluated_section_and_gate_blocks_recommended(tmp_path):
+    from tripforge.site.sections import sync
+    dst = _trip_with_section(tmp_path, [opt("early", "2026-11-21T19:00+07:00", "2026-11-21T18:30+07:00")])
+    assert [r["state"] for r in sync(dst)] == ["updated"]
+    assert [r["state"] for r in sync(dst)] == ["unchanged"]
+    out = json.loads((dst / "site" / "data" / "flights.json").read_text())
+    assert out["best"] == "early" and out["options"][0]["fails"] == 1
     html = (build(dst) / "index.html").read_text()
-    assert 'class="panel fp best"' in html and "rule broken" in html and "B not before A" in html
+    assert 'id="sections"' in html and "startSections" in html
     assert check(dst) == []
-    cfg["data"]["flightPlan"]["options"][0]["recommended"] = True
-    (dst / "site" / "trip.json").write_text(json.dumps(cfg))
+    (dst / "flights.json").write_text(json.dumps({"rules": RULES, "options": [{**opt("early", "2026-11-21T19:00+07:00", "2026-11-21T18:30+07:00"), "recommended": True}]}))
     assert any("B not before A" in x for x in check(dst))
