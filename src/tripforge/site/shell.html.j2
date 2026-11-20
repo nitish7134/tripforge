@@ -24,7 +24,7 @@
   <div class="stripwrap"><div class="strip" id="strip"></div></div>
   <div class="deck" id="deck">
   <article class="pg" id="dcpre">
-    <div class="photo" style="background-image:url(img/{{ d.runway.img }}.jpg)"><span class="cap">{{ d.cred[d.runway.img] }}</span></div>
+    <div class="photo"{% if d.runway.img %} style="background-image:url(img/{{ d.runway.img }}.jpg)"{% endif %}><span class="cap">{{ d.cred[d.runway.img] }}</span></div>
     <div class="hd"><div class="dn" id="pre-dn">…<small id="pre-sm">days out</small></div><div><div class="where">Runway · {{ t.home }}</div><h3 id="prog-h">… to take-off</h3></div></div>
     <div class="prog" style="margin-top:12px"><i id="prog-i"></i></div>
     <div class="row" style="margin-top:10px"><span class="pill ok">{{ d.runway.booked }} booked</span>{% if d.runway.open %}<span class="pill open">{{ d.runway.open }} open</span>{% endif %}<span class="pill">{{ t.nights }} nights</span><span class="pill" id="prog-s">{{ t.t0Label }}</span></div>

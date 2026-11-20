@@ -7,3 +7,4 @@
 .fp .fr.ok{color:var(--ink-2)}.fp .fr.ok span{color:#4cc38a}
 .fp .fr.warn span{color:var(--mari)}.fp .fr.bad{color:#ff8a8a}
 .pill.bad{background:rgba(255,100,100,.18);color:#ff8a8a}
+.fp .fl.pick{border-left:3px solid var(--mari);padding-left:8px}

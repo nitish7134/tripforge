@@ -81,7 +81,7 @@ def evaluate(plan: dict) -> dict:
         o["ok"] = o["fails"] == 0
         opts.append(o)
     plan["options"] = opts
-    if opts:
+    if opts and plan.get("best") not in {o["id"] for o in opts}:   # an author-chosen `best` wins; otherwise fewest hard failures, then cheapest
         plan["best"] = min(opts, key=lambda o: (o["fails"], o["warns"], o["total"]))["id"]
     return plan
 
