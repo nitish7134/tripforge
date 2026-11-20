@@ -116,3 +116,30 @@ def test_book_renderer_rows_badges_links_total():
         {"who": "Home", "flight": "ZZ 3", "price": 5}]})
     assert "INR 27,000" in out and "pill ok" in out and "pill bad" in out and "not checked" in out
     assert 'href="https://air.example/b"' in out and 'target="_blank"' in out and "INR 93,000" in out and "Not booked" in out
+
+
+def test_book_renderer_booking_links_and_unchanged_price():
+    out = _render("book", {"new_total_inr": 5, "legs": [{"flight_no": "XX 1", "price_inr": 10, "old_price_inr": 10, "status": "listed",
+        "booking_links": {"google_flights": "https://g.example/f", "airline": "javascript:x"}},
+        {"flight_no": "YY 2", "price_inr": 30, "old_price_inr": 20, "status": "changed"}]})
+    assert 'href="https://g.example/f"' in out and "google flights" in out and "javascript:" not in out
+    assert "(was 10)" not in out and "(was 20)" in out and "price changed" in out and "pill ok" in out
+
+
+def test_brief_renderer():
+    out = _render("brief", {"assumptions": [{"t": "Flights", "d": "C2"}, "Nothing booked"], "changes": [{"t": "If X", "d": "do Y"}],
+                            "budget": {"rows": [["Flights", "100", "two people"]], "total": "150"}})
+    assert "Assumptions" in out and "Nothing booked" in out and "What changes if" in out and "two people" in out and ">150<" in out
+
+
+def test_flight_renderer_cap_pills_and_over_budget():
+    leg = lambda f, cap: {"who": "A", "dir": "Out", "flight": f, "from": "A", "to": "B", "depL": "1", "arrL": "2", "price": 1, "cap": cap}
+    out = _render("flightPlan", {"options": [{"id": "o", "label": "O", "over": True, "legs": [leg("X1", {"ok": True, "headroom": 713}), leg("X2", {"ok": False, "headroom": -1804})], "results": [], "total": 0}]})
+    assert "Over budget" in out and "fp over" in out and "713 under cap" in out and "over cap by X1,804" in out
+
+
+def test_brief_summary_block():
+    out = _render("brief", {"summary": {"who": "A and B", "dates": "1-4", "route": "X to Y", "total": "100",
+        "book_first": [{"t": "Flights", "u": "https://e.com/f", "d": "first"}, {"t": "Bad", "u": "javascript:1"}], "checks": [{"t": "rule", "ok": True}, {"t": "rule2", "ok": False}, {"t": "soft", "ok": "warn"}]}})
+    assert "A and B" in out and 'href="https://e.com/f"' in out and "javascript:" not in out and "1. " in out and "2. Bad" in out
+    assert "fr ok" in out and "fr bad" in out and "fr warn" in out

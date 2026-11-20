@@ -12,9 +12,9 @@ function secAuto(v,depth=0){ /* tolerant fallback for any JSON shape: lists beco
 function secFlights(j){
  const sym=j.sym||TRIP.sym||'';const all=j.options||[];const ch=all.find(o=>o.id===j.chosen);
  const opts=ch?[ch]:all;   /* a `chosen` option is shown alone on top; the rest fold under Other options */
- const card=o=>`<div class="panel fp${o.id===(j.chosen||j.best)?' best':''}">
-  <div class="kv"><b>${esc(o.label)}</b><span>${o.fails?`<span class="pill bad">${o.fails} rule${o.fails>1?'s':''} broken</span>`:'<span class="pill ok">rules met</span>'}${o.warns?` <span class="pill open">${o.warns} close call</span>`:''}</span></div>
-  ${(o.legs||[]).map(l=>`<div class="fl"><small>${esc(l.who)} · ${esc(l.dir)}</small><div><b>${esc(l.flight)}</b> ${esc(l.from)} → ${esc(l.to)} · ${esc(l.depL)} → ${esc(l.arrL)}${(()=>{const v=l.verified??o.verified??j.verified;return v===true?'':' '+secEst().replace('>est<',v==='proxy'?'>proxy schedule<':'>unverified<')})()}${l.price?` · <span class="num">${esc(sym)}${secFmt(l.price)}</span>`:''}</div></div>`).join('')}
+ const card=o=>`<div class="panel fp${o.id===(j.chosen||j.best)?' best':''}${o.over?' over':''}">
+  <div class="kv"><b>${esc(o.label)}</b><span>${o.over?'<span class="pill bad">Over budget</span> ':''}${o.fails?`<span class="pill bad">${o.fails} rule${o.fails>1?'s':''} broken</span>`:'<span class="pill ok">rules met</span>'}${o.warns?` <span class="pill open">${o.warns} close call</span>`:''}</span></div>
+  ${(o.legs||[]).map(l=>`<div class="fl"><small>${esc(l.who)} · ${esc(l.dir)}</small><div><b>${esc(l.flight)}</b> ${esc(l.from)} → ${esc(l.to)} · ${esc(l.depL)} → ${esc(l.arrL)}${(()=>{const v=l.verified??o.verified??j.verified;return v===true?'':' '+secEst().replace('>est<',v==='proxy'?'>proxy schedule<':'>unverified<')})()}${l.price?` · <span class="num">${esc(sym)}${secFmt(l.price)}</span>${l.pax>1?` (${esc(sym)}${secFmt(Math.round(l.price/l.pax))} each)`:''}`:''}${l.cap?(l.cap.ok?` <span class="pill ${l.cap.headroom<2000?'open':'ok'}">${esc(sym)}${secFmt(l.cap.headroom)} under cap</span>`:` <span class="pill bad">over cap by ${esc(sym)}${secFmt(-l.cap.headroom)}</span>`):''}</div></div>`).join('')}
   ${(o.results||[]).map(r=>`<div class="fr ${r.ok?'ok':r.soft?'warn':'bad'}"><span>${r.ok?'✓':r.soft?'!':'✗'}</span>${esc(r.label)}: ${esc(r.detail)}</div>`).join('')}
   <div class="kv"><span class="muted">Total, all legs${o.id===j.chosen?' · chosen':o.id===j.best?' · best pick':''}</span><b class="num">${esc(sym)}${secFmt(o.total||0)}</b></div>
   ${o.note?`<p class="muted">${esc(o.note)}</p>`:''}</div>`;
@@ -55,17 +55,27 @@ function secStays(j){ /* kind "stays": places[{name|place, dates, options[]}]; o
 
 function secBook(j){ /* kind "book": legs|rows|items[{leg|route|who, flight, price|price_<cur>, available|availability|status, url|book_url|link, checked_at}], total|total_<cur> */
  const rows=j.legs||j.rows||j.items||j.flights||(Array.isArray(j)?j:[]);const sym=j.sym||'';
- const avail=v=>{if(v===true||/^(ok|yes|open|available|seats? available|bookable)/i.test(String(v)))return['ok',v===true?'available':String(v)];
+ const avail=v=>{if(v===true||/^(ok|yes|open|available|listed|seats? available|bookable)/i.test(String(v)))return['ok',v===true?'available':String(v)];
+  if(/^changed/i.test(String(v)))return['open','price changed'];
   if(v===false||/(sold ?out|unavailable|not available|full|cancel)/i.test(String(v)))return['bad',v===false?'not available':String(v)];
   return['open',v==null||v===''?'not checked':String(v)]};
  const price=x=>{const k=Object.keys(x).find(k=>/^price(_[a-z]{3})?$/.test(k)&&x[k]!=null&&typeof x[k]!=='object');if(!k)return'';const c=k.length>5?k.slice(-3).toUpperCase()+' ':sym;return c+secFmt(x[k])};
- const out=rows.map(x=>{const [cls,txt]=avail(x.available??x.availability??x.status);const url=x.url||x.book_url||x.booking_url||x.link;
-  const was=x.previous_price_inr??x.old_price_inr??x.was;
-  return`<div class="fl"><small>${esc(x.who||x.leg||'')}${x.route?' · '+esc(x.route):''}${x.date?' · '+esc(x.date):''}</small><div><b>${esc(x.flight||x.flight_no||x.name||'')}</b>${x.dep?` ${esc(x.dep)}${x.arr?' → '+esc(x.arr):''}`:''} <span class="pill ${cls}">${esc(txt)}</span>${price(x)?` · <span class="num">${price(x)}</span>`:''}${was!=null?` <span class="muted">(was ${secFmt(was)})</span>`:''}${/^https?:\/\//.test(url||'')?` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">book</a>`:''}</div>${x.checked_at?`<div class="muted">checked ${esc(x.checked_at)}</div>`:''}${x.note?`<div class="muted">${esc(x.note)}</div>`:''}</div>`}).join('');
+ const out=rows.map(x=>{const [cls,txt]=avail(x.available??x.availability??x.status);const links=x.booking_links&&typeof x.booking_links==='object'?Object.entries(x.booking_links).filter(([k,u])=>/^https?:\/\//.test(u||'')):[];const url=x.url||x.book_url||x.booking_url||x.link;
+  const wk=Object.keys(x).find(k=>/^(old|previous)_price(_[a-z]{3})?$/.test(k));const was=wk?x[wk]:x.was;const same=was!=null&&Number(was)===Number(x[Object.keys(x).find(k=>/^price(_[a-z]{3})?$/.test(k))]);
+  return`<div class="fl"><small>${esc(x.who||x.leg||'')}${x.route?' · '+esc(x.route):''}${x.date?' · '+esc(x.date):''}</small><div><b>${esc(x.flight||x.flight_no||x.name||'')}</b>${x.dep?` ${esc(x.dep)}${x.arr?' → '+esc(x.arr):''}`:''} <span class="pill ${cls}">${esc(txt)}</span>${price(x)?` · <span class="num">${price(x)}</span>`:''}${was!=null&&!same?` <span class="muted">(was ${secFmt(was)})</span>`:''}${/^https?:\/\//.test(url||'')?` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">book</a>`:''}${links.map(([k,u])=>` · <a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(k.replace(/_/g,' '))}</a>`).join('')}</div>${x.checked_at?`<div class="muted">checked ${esc(x.checked_at)}</div>`:''}${x.note?`<div class="muted">${esc(x.note)}</div>`:''}</div>`}).join('');
  const tk=Object.keys(j).find(k=>/^(new_)?total(_[a-z]{3})?$/.test(k)&&j[k]!=null&&typeof j[k]!=='object');
  const total=tk?(tk.match(/_([a-z]{3})$/)?tk.slice(-3).toUpperCase()+' ':sym)+secFmt(j[tk]):'';
  return`<div class="panel fp best">${out||'<p class="muted">No legs in the file yet.</p>'}${total?`<div class="kv"><b>New total, all legs</b><b class="num">${total}</b></div>`:''}${j.checked_at?`<p class="muted">Checked ${esc(j.checked_at)}${j.source?' · '+esc(j.source):''}</p>`:''}<p class="muted">Not booked. Prices and seats change; confirm on the booking page before paying.</p>${j.note?`<p class="muted">${esc(j.note)}</p>`:''}</div>`}
-const SEC_RENDER={book:secBook,flightPlan:secFlights,itinerary:secItinerary,stays:secStays};
+
+function secBrief(j){ /* kind "brief": assumptions[{t,d}], changes[{t,d}] ("what changes if"), budget{rows[[label,value,note]], total, note} */
+ const list=(a)=>(a||[]).map(x=>typeof x==='string'?`<div class="fr"><span>•</span>${esc(x)}</div>`:`<div class="fl"><div><b>${esc(x.t)}</b></div>${x.d?`<div class="muted">${esc(x.d)}</div>`:''}</div>`).join('');
+ let o='';const S=j.summary;
+ if(S)o+=`<div class="panel fp best"><div class="kv"><b>${esc(S.title||'At a glance')}</b>${S.total?`<b class="num">${esc(S.total)}</b>`:''}</div>${[['Who',S.who],['Dates',S.dates],['Route',S.route]].filter(r=>r[1]).map(r=>`<div class="kv"><span class="muted">${r[0]}</span><span>${esc(r[1])}</span></div>`).join('')}${(S.book_first||[]).length?`<div class="fl"><small>Book first</small>${S.book_first.map((b,i)=>`<div>${i+1}. ${/^https?:\/\//.test(b.u||'')?`<a href="${esc(b.u)}" target="_blank" rel="noopener noreferrer">${esc(b.t)}</a>`:esc(b.t)}${b.d?` <span class="muted">${esc(b.d)}</span>`:''}</div>`).join('')}</div>`:''}${(S.checks||[]).map(c=>`<div class="fr ${c.ok==='warn'?'warn':c.ok?'ok':'bad'}"><span>${c.ok==='warn'?'!':c.ok?'✓':'✗'}</span>${esc(c.t)}</div>`).join('')}</div>`;
+ if((j.assumptions||[]).length)o+=`<div class="panel fp"><div class="kv"><b>${esc(j.assumptionsTitle||'Assumptions')}</b>${j.badge?`<span class="pill open">${esc(j.badge)}</span>`:''}</div>${list(j.assumptions)}</div>`;
+ if((j.changes||[]).length)o+=`<details class="fold"><summary>${esc(j.changesTitle||'What changes if…')}</summary><div class="panel">${list(j.changes)}</div></details>`;
+ const b=j.budget;if(b&&(b.rows||[]).length)o+=`<details class="fold" open><summary>${esc(b.title||'Rough budget')}</summary><div class="panel">${b.rows.map(r=>`<div class="kv"><span>${esc(r[0])}${r[2]?`<div class="muted">${esc(r[2])}</div>`:''}</span><b class="num">${esc(r[1])}</b></div>`).join('')}${b.total?`<div class="kv"><b>Total</b><b class="num">${esc(b.total)}</b></div>`:''}${b.note?`<p class="muted">${esc(b.note)}</p>`:''}</div></details>`;
+ return o}
+const SEC_RENDER={brief:secBrief,book:secBook,flightPlan:secFlights,itinerary:secItinerary,stays:secStays};
 async function secLoad(s,box){
  const body=box.querySelector('.sb'),ac=new AbortController(),to=setTimeout(()=>ac.abort(),SEC_TTL);
  try{const r=await fetch(`data/${s.id}.json`,{cache:'no-store',signal:ac.signal});

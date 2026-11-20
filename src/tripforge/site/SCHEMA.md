@@ -82,7 +82,7 @@ names of travellers who did not agree to appear; the build refuses the page if a
 `tripforge site sync trips/<slug>` (add `--watch 30` to keep going) prepares each `src` into `site/data/<id>.json` concurrently; copy that folder
 to the host and the page picks it up without a rebuild. The page fetches every section on its own request and refresh clock (`every`
 seconds, default 300, plus when the tab returns), with an 8 s timeout, so one slow or missing section shows "Coming soon" while the rest work.
-Kinds: `flightPlan` (below); `itinerary` ({verdict, days[{label, assumption, blocks[{time,title,place,why,link}]}], stays[{place, options[]}], transfer, getting_around, rules_to_flag, visa, budget{lines,total_inr}, unverified[], assumptions[]}; estimates carry a visible "est" pill); `stays` ({places:[{place, dates, top_pick:{name,url,price/est_inr,rating,area,why,verified}, runner_up:{...}}]}; every listing links out and shows "unverified" unless `verified: true`; once it loads it replaces the itinerary's estimated stays); `book` ({legs:[{who, flight, price_<cur>, available|availability, url, checked_at}], total_<cur>, checked_at}: availability pill, booking link, new total); a section may set `pending` (text shown while its file is missing); anything else is rendered generically (lists become cards, objects become lines, links become links).
+Kinds: `flightPlan` (below); `itinerary` ({verdict, days[{label, assumption, blocks[{time,title,place,why,link}]}], stays[{place, options[]}], transfer, getting_around, rules_to_flag, visa, budget{lines,total_inr}, unverified[], assumptions[]}; estimates carry a visible "est" pill); `stays` ({places:[{place, dates, top_pick:{name,url,price/est_inr,rating,area,why,verified}, runner_up:{...}}]}; every listing links out and shows "unverified" unless `verified: true`; once it loads it replaces the itinerary's estimated stays); `book` ({legs:[{who, flight, price_<cur>, available|availability, url, checked_at}], total_<cur>, checked_at}: availability pill, booking link, new total); `brief` ({summary{who, dates, route, total, book_first[{t,u,d}], checks[{t,ok}]}, assumptions[{t,d}|text], changes[{t,d}], budget{rows[[label,value,note]], total, note}}: the assumptions box, a folded "What changes if" list and a rough budget); a section may set `pending` (text shown while its file is missing); anything else is rendered generically (lists become cards, objects become lines, links become links).
 Add a kind by adding a renderer to `SEC_RENDER` in `js/20-sections.js` and, if the source needs preparing, a processor in `sections.py`.
 
 ## `flightPlan` section: per-person flights with rule checks
@@ -96,7 +96,8 @@ every option is checked against `rules`, shown with ✓ / ! / ✗ per rule, and 
     {"type": "not_earlier",   "leg": "out-b", "than": "out-a", "label": "B lands no earlier than A"},
     {"type": "within",        "legs": ["out-a", "out-b"], "minutes": 30, "soft": true, "label": "Land together"},   // soft: warning only
     {"type": "arrive_before", "leg": "back-b", "time": "19:00", "label": "B home before 19:00"},                 // local arrival time
-    {"type": "arrive_on",     "leg": "back-b", "date": "2026-11-24", "label": "Same-day return"}
+    {"type": "arrive_on",     "leg": "back-b", "date": "2026-11-24", "label": "Same-day return"},
+    {"type": "max_fare",      "max": 25000, "label": "No flight over 25,000 per person"}   // per leg price / pax; legs get cap.headroom, options over it are greyed "Over budget"
   ],
   "options": [{"id": "day", "label": "Daytime pair", "recommended": true,   // recommended options must pass hard rules or `site check` fails
     "legs": [{"role": "out-a", "who": "A", "dir": "Out", "flight": "XX 123", "from": "AAA", "to": "BBB",
