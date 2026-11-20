@@ -1,0 +1,9 @@
+/* flight plan: per-person legs, rule results; stacked rows so 360px never scrolls sideways */
+.fp.best{border-color:var(--mari)}
+.fp .fl{padding:6px 0;border-top:1px solid rgba(255,255,255,.08);overflow-wrap:anywhere}
+.fp .fl small{display:block;color:var(--ink-2)}
+.fp .fr{font-size:14px;padding:2px 0;overflow-wrap:anywhere}
+.fp .fr span{display:inline-block;width:1.2em;font-weight:700}
+.fp .fr.ok{color:var(--ink-2)}.fp .fr.ok span{color:#4cc38a}
+.fp .fr.warn span{color:var(--mari)}.fp .fr.bad{color:#ff8a8a}
+.pill.bad{background:rgba(255,100,100,.18);color:#ff8a8a}

@@ -10,6 +10,7 @@
 07-today
 08-daily-plan-from-data-plans-json
 09-tabs
+10-flights
 90-themes
 [js]
 03-trip-inject
@@ -29,4 +30,5 @@
 15-ledger
 16-phrases
 17-checklists
+20-sections
 19-boot

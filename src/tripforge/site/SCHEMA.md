@@ -73,3 +73,35 @@ names of travellers who did not agree to appear; the build refuses the page if a
 3. `tripforge site build trips/<slug>` -> `site/dist/`. Fix anything the build refuses (JS syntax, private data).
 4. Screenshot at 390px with Playwright, check console errors, look at the pixels.
 5. `tripforge site host trips/<slug>` prints the server steps for the hosting owner.
+
+## `data.sections` (optional): independent parts of the page, each its own JSON file
+```jsonc
+"sections": [{"id": "flights", "title": "Flights", "kind": "flightPlan", "src": "flights.json", "every": 300},
+             {"id": "itinerary", "title": "Itinerary", "src": "itinerary.json"}]   // src: path relative to trips/<slug>/
+```
+`tripforge site sync trips/<slug>` (add `--watch 30` to keep going) prepares each `src` into `site/data/<id>.json` concurrently; copy that folder
+to the host and the page picks it up without a rebuild. The page fetches every section on its own request and refresh clock (`every`
+seconds, default 300, plus when the tab returns), with an 8 s timeout, so one slow or missing section shows "Coming soon" while the rest work.
+Kinds: `flightPlan` (below); `itinerary` ({verdict, days[{label, assumption, blocks[{time,title,place,why,link}]}], stays[{place, options[]}], transfer, getting_around, rules_to_flag, visa, budget{lines,total_inr}, unverified[], assumptions[]}; estimates carry a visible "est" pill); `stays` ({places:[{place, dates, top_pick:{name,url,price/est_inr,rating,area,why,verified}, runner_up:{...}}]}; every listing links out and shows "unverified" unless `verified: true`; once it loads it replaces the itinerary's estimated stays); anything else is rendered generically (lists become cards, objects become lines, links become links).
+Add a kind by adding a renderer to `SEC_RENDER` in `js/20-sections.js` and, if the source needs preparing, a processor in `sections.py`.
+
+## `flightPlan` section: per-person flights with rule checks
+Use when travellers fly separately (different origins or return cities). Each option is one complete set of legs;
+every option is checked against `rules`, shown with ✓ / ! / ✗ per rule, and the best option
+(fewest hard failures, then cheapest) is marked. See `src/tripforge/site/flightplan.py`. `site check` fails when an option marked `recommended` breaks a hard rule.
+```jsonc
+{
+  "title": "Flights", "note": "Prices: source and fetch time",
+  "rules": [
+    {"type": "not_earlier",   "leg": "out-b", "than": "out-a", "label": "B lands no earlier than A"},
+    {"type": "within",        "legs": ["out-a", "out-b"], "minutes": 30, "soft": true, "label": "Land together"},   // soft: warning only
+    {"type": "arrive_before", "leg": "back-b", "time": "19:00", "label": "B home before 19:00"},                 // local arrival time
+    {"type": "arrive_on",     "leg": "back-b", "date": "2026-11-24", "label": "Same-day return"}
+  ],
+  "options": [{"id": "day", "label": "Daytime pair", "recommended": true,   // recommended options must pass hard rules or `site check` fails
+    "legs": [{"role": "out-a", "who": "A", "dir": "Out", "flight": "XX 123", "from": "AAA", "to": "BBB",
+              "dep": "2026-11-21T12:20+05:30", "arr": "2026-11-21T18:10+07:00", "price": 18780}]}]
+}
+```
+`verified`: true on a leg, an option or the whole plan marks it checked against the airline or fare source; anything else shows an "unverified" pill, and the page upgrades itself when the file changes to `verified: true`.
+`dep` / `arr` are ISO times with each airport's own offset, so cross-timezone comparisons are exact.

@@ -156,6 +156,8 @@ def check(trip_dir: Path) -> list[str]:
             fresh = build(scratch, bump=False)
         except SystemExit as ex:  # syntax or privacy
             return [str(ex)]
+        from .sections import gate_problems
+        problems += gate_problems(trip_dir)
         live = site / "dist" / "index.html"
         if live.exists() and live.read_text() != (fresh / "index.html").read_text():
             problems.append("site/dist/index.html differs from what trip.json + the template build now: run `tripforge site build`")
