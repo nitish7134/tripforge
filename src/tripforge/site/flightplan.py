@@ -8,6 +8,8 @@ Rule types (`leg` / `than` / `legs` are leg `role` names inside one option):
   within        {legs:[a,b], minutes}    arrivals are at most `minutes` apart
   arrive_before {leg, time:"HH:MM"}      lands the day it departs, before `time` local (leg's arrival offset)
   arrive_on     {leg, date:"YYYY-MM-DD"} local arrival date equals `date` (same-day return)
+  max_fare      {max, label?}           every leg's per-person fare (price / pax, pax default 1) is at most `max`; each leg gets
+                                         `cap: {ok, headroom}` and an option breaking it is marked `over` (shown greyed, never recommended)
 A rule with `"soft": true` shows as a warning and never fails an option. A rule naming a role the option lacks is skipped.
 """
 from __future__ import annotations
@@ -26,6 +28,22 @@ def _gap_min(a: datetime, b: datetime) -> int:
 def _fmt_gap(m: int) -> str:
     m = abs(m)
     return f"{m // 60}h {m % 60:02d}m" if m >= 60 else f"{m}m"
+
+
+def _per_person(l: dict) -> float | None:
+    return None if l.get("price") is None else l["price"] / (l.get("pax") or 1)
+
+
+def _cap(rule: dict, legs: list[dict]) -> dict:
+    mx = float(rule["max"])
+    over = [l for l in legs if (_per_person(l) or 0) > mx]
+    priced = [l for l in legs if _per_person(l) is not None]
+    if over:
+        return {"ok": False, "detail": "over: " + ", ".join(f"{l.get('flight', '?')} {round(_per_person(l)):,}" for l in over)}
+    if not priced:
+        return {"ok": False, "detail": "no fares to check"}
+    tight = min(priced, key=lambda l: mx - _per_person(l))
+    return {"ok": True, "detail": f"tightest {tight.get('flight', '?')}, {round(mx - _per_person(tight)):,} under"}
 
 
 def _check(rule: dict, legs: dict[str, dict]) -> dict | None:
@@ -67,13 +85,17 @@ def evaluate(plan: dict) -> dict:
         o = dict(o)
         legs = {l["role"]: l for l in o.get("legs", [])}
         res = []
+        caps = [r for r in rules if r.get("type") == "max_fare"]
         for r in rules:
-            c = _check(r, legs)
+            c = _cap(r, o.get("legs", [])) if r.get("type") == "max_fare" else _check(r, legs)
             if c is None:
                 continue
             soft = bool(r.get("soft"))
             res.append({"label": r.get("label") or r["type"], "ok": c["ok"], "soft": soft, "detail": c["detail"]})
-        o["legs"] = [{**l, "depL": _local(l["dep"]), "arrL": _local(l["arr"], l["dep"])} for l in o.get("legs", [])]
+        o["legs"] = [{**l, "depL": _local(l["dep"]), "arrL": _local(l["arr"], l["dep"]),
+                      **({"cap": {"ok": _per_person(l) <= min(float(c["max"]) for c in caps), "headroom": round(min(float(c["max"]) for c in caps) - _per_person(l))}}
+                         if caps and _per_person(l) is not None else {})} for l in o.get("legs", [])]
+        o["over"] = any(l.get("cap", {}).get("ok") is False for l in o["legs"])
         o["results"] = res
         o["fails"] = sum(1 for x in res if not x["ok"] and not x["soft"])
         o["warns"] = sum(1 for x in res if not x["ok"] and x["soft"])
@@ -81,7 +103,7 @@ def evaluate(plan: dict) -> dict:
         o["ok"] = o["fails"] == 0
         opts.append(o)
     plan["options"] = opts
-    if opts and plan.get("best") not in {o["id"] for o in opts}:   # an author-chosen `best` wins; otherwise fewest hard failures, then cheapest
+    if opts and plan.get("best") not in {o["id"] for o in opts if not o["over"]}:   # an author-chosen `best` wins; otherwise fewest hard failures, then cheapest
         plan["best"] = min(opts, key=lambda o: (o["fails"], o["warns"], o["total"]))["id"]
     return plan
 
@@ -90,6 +112,6 @@ def problems(plan: dict) -> list[str]:
     """Deploy-gate messages: every option marked `recommended` must pass its hard rules."""
     out = []
     for o in evaluate(plan).get("options", []):
-        if o.get("recommended"):
+        if o.get("recommended") or o.get("id") == plan.get("chosen"):
             out += [f"flight option '{o['id']}' breaks rule '{x['label']}' ({x['detail']})" for x in o["results"] if not x["ok"] and not x["soft"]]
     return out

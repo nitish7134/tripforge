@@ -91,3 +91,17 @@ def test_author_chosen_best_wins():
     p = evaluate({"rules": RULES, "best": "dear", "options": [opt("cheap", "2026-11-21T18:10+07:00", "2026-11-21T18:30+07:00", price=1), opt("dear", "2026-11-21T18:10+07:00", "2026-11-21T18:30+07:00", price=9)]})
     assert p["best"] == "dear"
     assert evaluate({"rules": RULES, "options": p["options"]})["best"] == "cheap"
+
+
+def test_max_fare_cap_per_person_headroom_and_over_budget():
+    cap = [{"type": "max_fare", "max": 25000, "label": "cap"}]
+    ok = {"id": "ok", "legs": [leg("a", "2026-11-21T12:00+05:30", "2026-11-21T18:10+07:00", 24287), {**leg("d", "2026-11-22T07:45+07:00", "2026-11-22T09:30+07:00", 11026), "pax": 2}]}
+    bad = {"id": "bad", "legs": [leg("a", "2026-11-21T03:30+05:30", "2026-11-21T09:00+07:00", 26804)]}
+    p = evaluate({"rules": cap, "options": [bad, ok]})
+    by = {o["id"]: o for o in p["options"]}
+    assert by["ok"]["legs"][0]["cap"] == {"ok": True, "headroom": 713} and by["ok"]["legs"][1]["cap"]["headroom"] == 25000 - 5513
+    assert not by["ok"]["over"] and by["ok"]["results"][0]["detail"].startswith("tightest")
+    assert by["bad"]["over"] and by["bad"]["fails"] == 1 and "26,804" in by["bad"]["results"][0]["detail"]
+    assert p["best"] == "ok"
+    assert evaluate({"rules": cap, "best": "bad", "options": [bad, ok]})["best"] == "ok"   # an over-budget option is never the pick
+    assert problems({"rules": cap, "chosen": "bad", "options": [bad, ok]})                   # nor can it be the chosen plan
