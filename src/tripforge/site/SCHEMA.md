@@ -88,20 +88,20 @@ Add a kind by adding a renderer to `SEC_RENDER` in `js/20-sections.js` and, if t
 ## `dayGuide` section: hour-by-hour days with places, transport, meals, backups and budgets
 Use for a real daily guide. The author writes local-currency numbers and names; `dayguide.py` converts with the dated `fx`, builds a Google Maps search link for every item with a `name` (+ `area`) unless it gives its own `maps` pin, and refuses bad times, non-https links and a missing rate date.
 ```jsonc
-{"fx": {"from": "THB", "to": "INR", "rate": 2.7489, "date": "20 Nov 2026", "source": "https://..."},   // required, dated
+{"fx": {"from": "EUR", "to": "USD", "rate": 1.08, "date": "1 Jan 2030", "source": "https://..."},   // required, dated
  "intro": "one line",
  "days": [{"id": "d1", "tab": "Sat 21", "date": "2026-11-21", "title": "Sat 21 Nov: ...", "summary": "...", "warn": ["red line"],
    "timeline": [{"time": "18:10", "end": "18:50", "title": "Land", "kind": "fly|move|eat|drink|beach|see|rest|book|night",
-                 "name": "place", "area": "district", "why": "one line", "hours": "09:00-17:00", "cost": [100, 200],   // number or [low, high], local currency
-                 "how": "text" | {"text": "Airport rail", "mins": 30, "cost": 45}, "tip": "...", "url": "booking/info https", "src": "evidence https", "verified": false}],
-   "eat": [{"meal": "Dinner", "name": "...", "area": "...", "why": "...", "order": [{"dish": "pad thai", "cost": 80}], "hours": "...", "cost": [300, 600]}],
+                 "name": "place", "area": "district", "why": "one line", "hours": "09:00-17:00", "cost": [10, 20],   // number or [low, high], local currency
+                 "how": "text" | {"text": "Airport train", "mins": 30, "cost": 5}, "tip": "...", "url": "booking/info https", "src": "evidence https", "verified": false}],
+   "eat": [{"meal": "Dinner", "name": "...", "area": "...", "why": "...", "order": [{"dish": "house special", "cost": 12}], "hours": "...", "cost": [300, 600]}],
    "nightlife": [{"time": "22:00", "name": "...", "entry": [300, 500], "drinks": [200, 350], "dress": "...", "safety": "..."}],
    "do": [{"name": "...", "kind": "beach", "why": "...", "url": "https://...", "cost": 1700}],
    "backup": {"title": "Rain or low-energy backup", "text": "...", "items": [{"name": "...", "cost": 150}]},
    "budget": {"rows": [{"item": "Food", "cost": [800, 1500]}, {"item": "Airport train", "home": 250}], "note": "..."},   // cost = local currency, home = already home currency; totals are computed
    "book": [{"t": "Boat tour", "u": "https://...", "d": "refundable"}], "notes": ["..."]}]}
 ```
-Times must be HH:MM and ascending; a small hour after 18:00 counts as next day. An item is "unverified" (visible badge, cost shown as "est ...") unless it says `verified: true`. The page opens on today's day when today is a trip day (trip timezone), else the first, and a day selector switches days without scrolling.
+Times must be HH:MM and ascending; a small hour after 18:00 counts as next day. Every cost is shown as "est ..."; an item carries the "unverified" badge unless it says `verified: true` (read in its cited `src`). The page opens on today's day when today is a trip day (trip timezone), else the first, and a day selector switches days without scrolling.
 
 ## `flightPlan` section: per-person flights with rule checks
 Use when travellers fly separately (different origins or return cities). Each option is one complete set of legs;

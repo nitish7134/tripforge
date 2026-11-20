@@ -79,7 +79,7 @@ function secBrief(j){ /* kind "brief": assumptions[{t,d}], changes[{t,d}] ("what
 const dgA=(u,t,c)=>/^https:\/\//.test(u||'')?`<a${c?` class="${c}"`:''} href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(t)}</a>`:'';
 const DG_ICON={fly:'✈️',move:'🚕',eat:'🍜',drink:'🍸',beach:'🏖️',see:'📍',rest:'🛏️',book:'🎟️',night:'🌙'};
 function dgRow(x,left){
- const unv=x.verified?'':' '+secEst().replace('>est<','>unverified<');const est=x.verified?'':'est ';
+ const unv=x.verified?'':' '+secEst().replace('>est<','>unverified<');const est='est ';
  const h=x.how;const how=h?(typeof h==='string'?h:[h.text,h.mins?h.mins+' min':'',h.cost_p?est+h.cost_p.label:''].filter(Boolean).join(' · ')):'';
  const m=[['Hours',x.hours],['Cost',x.cost_p&&est+x.cost_p.label],['Entry',x.entry_p?est+x.entry_p.label:x.entry],['Drinks',x.drinks_p?est+x.drinks_p.label:x.drinks],['Dress',x.dress],['Getting there',how],['Safety',x.safety],['Tip',x.tip]]
   .filter(r=>r[1]).map(r=>`<div class="dg-m"><span>${r[0]}</span>${esc(r[1])}</div>`).join('');

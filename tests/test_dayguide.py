@@ -108,7 +108,8 @@ def test_renderer_shows_selector_links_pills_and_escapes():
     assert out.count("<div class=\"dg-day\" data-d=\"d2\" hidden>") == 1 and "data-d=\"d1\" hidden" not in out   # first day selected
     assert 'href="https://www.google.com/maps/search/?api=1&amp;query=Cafe+%3Cb%3E+Old+Town"' in out
     assert "Cafe <b>" not in out and "&lt;b&gt;" in out                                 # names are escaped
-    assert "unverified" in out and "est AAA 100-200 (≈BBB 250-500)" in out
+    assert out.count(">unverified</span>") == 7 and "est AAA 100-200 (≈BBB 250-500)" in out   # every item except the one marked verified
+    assert "est AAA 300 (≈BBB 750)" in out                                                  # a verified row still says est: prices are never quotes
     assert 'href="https://example.com/boat"' in out and "Book ahead" in out and "Day total" in out
     assert "javascript:" not in out
 

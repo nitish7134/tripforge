@@ -1,5 +1,5 @@
 /* dayGuide: day selector, aligned timeline rows, small meta lines; wraps at 360px, never scrolls sideways */
-.dg-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:5;background:var(--night);padding:6px 0}
+.dg-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
 .dg-tab{border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;color:var(--ink-2);min-height:40px}
 .dg-tab[aria-pressed=true]{background:rgba(255,176,32,.16);border-color:transparent;color:var(--mari);font-weight:600}
 .dg-tab small{font-size:11px;opacity:.85}
