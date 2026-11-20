@@ -82,7 +82,7 @@ names of travellers who did not agree to appear; the build refuses the page if a
 `tripforge site sync trips/<slug>` (add `--watch 30` to keep going) prepares each `src` into `site/data/<id>.json` concurrently; copy that folder
 to the host and the page picks it up without a rebuild. The page fetches every section on its own request and refresh clock (`every`
 seconds, default 300, plus when the tab returns), with an 8 s timeout, so one slow or missing section shows "Coming soon" while the rest work.
-Kinds: `flightPlan` (below); `itinerary` ({verdict, days[{label, assumption, blocks[{time,title,place,why,link}]}], stays[{place, options[]}], transfer, getting_around, rules_to_flag, visa, budget{lines,total_inr}, unverified[], assumptions[]}; estimates carry a visible "est" pill); anything else is rendered generically (lists become cards, objects become lines, links become links).
+Kinds: `flightPlan` (below); `itinerary` ({verdict, days[{label, assumption, blocks[{time,title,place,why,link}]}], stays[{place, options[]}], transfer, getting_around, rules_to_flag, visa, budget{lines,total_inr}, unverified[], assumptions[]}; estimates carry a visible "est" pill); `stays` ({places:[{place, dates, top_pick:{name,url,price/est_inr,rating,area,why,verified}, runner_up:{...}}]}; every listing links out and shows "unverified" unless `verified: true`; once it loads it replaces the itinerary's estimated stays); anything else is rendered generically (lists become cards, objects become lines, links become links).
 Add a kind by adding a renderer to `SEC_RENDER` in `js/20-sections.js` and, if the source needs preparing, a processor in `sections.py`.
 
 ## `flightPlan` section: per-person flights with rule checks

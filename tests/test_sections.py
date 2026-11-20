@@ -33,3 +33,33 @@ def test_sections_run_concurrently(tmp_path, monkeypatch):
 
 def test_no_sections_is_a_noop(tmp_path):
     assert S.sync(_trip(tmp_path, [])) == []
+
+
+def _render(kind, data):
+    """Run js/20-sections.js under node with a stub DOM and return SEC_RENDER[kind](data)."""
+    import shutil as sh, subprocess
+    node = sh.which("node")
+    if not node:
+        import pytest; pytest.skip("node not installed")
+    js = (pathlib.Path(S.__file__).parent / "js" / "20-sections.js").read_text()
+    pre = ("const esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));"
+           "const TRIP={sym:'X'};const DATA={sections:[]};globalThis.window=globalThis;"
+           "const document={getElementById:()=>null,querySelectorAll:()=>[],addEventListener(){}};")
+    r = subprocess.run([node, "-e", pre + js + f"\nconsole.log(SEC_RENDER[{json.dumps(kind)}]({json.dumps(data)}))"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    return r.stdout
+
+
+def test_stays_renderer_links_listings_and_flags_unverified():
+    out = _render("stays", {"places": [{"place": "P", "top_pick": {"name": "Alpha", "url": "https://example.com/a", "est_inr": "9000", "verified": True},
+                                         "runner_up": {"name": "Beta<script>", "url": "javascript:alert(1)"}}]})
+    assert 'href="https://example.com/a"' in out and "INR 9000" in out
+    assert out.count("unverified") == 1                   # only the unverified runner-up
+    assert "javascript:" not in out.split("href=")[-1] and "<script>" not in out   # unsafe URL is not linked, names are escaped
+
+
+def test_flight_renderer_marks_unverified_legs():
+    plan = {"options": [{"id": "o", "label": "O", "legs": [{"who": "A", "dir": "Out", "flight": "XX 1", "from": "A", "to": "B", "depL": "10:00", "arrL": "12:00"}], "results": [], "total": 0}]}
+    assert "unverified" in _render("flightPlan", plan)
+    plan["verified"] = True
+    assert "unverified" not in _render("flightPlan", plan)
