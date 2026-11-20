@@ -75,7 +75,47 @@ function secBrief(j){ /* kind "brief": assumptions[{t,d}], changes[{t,d}] ("what
  if((j.changes||[]).length)o+=`<details class="fold"><summary>${esc(j.changesTitle||'What changes if…')}</summary><div class="panel">${list(j.changes)}</div></details>`;
  const b=j.budget;if(b&&(b.rows||[]).length)o+=`<details class="fold" open><summary>${esc(b.title||'Rough budget')}</summary><div class="panel">${b.rows.map(r=>`<div class="kv"><span>${esc(r[0])}${r[2]?`<div class="muted">${esc(r[2])}</div>`:''}</span><b class="num">${esc(r[1])}</b></div>`).join('')}${b.total?`<div class="kv"><b>Total</b><b class="num">${esc(b.total)}</b></div>`:''}${b.note?`<p class="muted">${esc(b.note)}</p>`:''}</div></details>`;
  return o}
-const SEC_RENDER={brief:secBrief,book:secBook,flightPlan:secFlights,itinerary:secItinerary,stays:secStays};
+/* ---------- kind "dayGuide": day selector, hour-by-hour timeline, meals, nightlife, activities, backup, budget, book-ahead (prepared by dayguide.py) ---------- */
+const dgA=(u,t,c)=>/^https:\/\//.test(u||'')?`<a${c?` class="${c}"`:''} href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(t)}</a>`:'';
+const DG_ICON={fly:'✈️',move:'🚕',eat:'🍜',drink:'🍸',beach:'🏖️',see:'📍',rest:'🛏️',book:'🎟️',night:'🌙'};
+function dgRow(x,left){
+ const unv=x.verified?'':' '+secEst().replace('>est<','>unverified<');const est=x.verified?'':'est ';
+ const h=x.how;const how=h?(typeof h==='string'?h:[h.text,h.mins?h.mins+' min':'',h.cost_p?est+h.cost_p.label:''].filter(Boolean).join(' · ')):'';
+ const m=[['Hours',x.hours],['Cost',x.cost_p&&est+x.cost_p.label],['Entry',x.entry_p?est+x.entry_p.label:x.entry],['Drinks',x.drinks_p?est+x.drinks_p.label:x.drinks],['Dress',x.dress],['Getting there',how],['Safety',x.safety],['Tip',x.tip]]
+  .filter(r=>r[1]).map(r=>`<div class="dg-m"><span>${r[0]}</span>${esc(r[1])}</div>`).join('');
+ const ord=(x.order||[]).length?`<div class="dg-m"><span>Order</span>${x.order.map(o=>typeof o==='string'?esc(o):esc(o.dish)+(o.cost_p?' <i>'+esc(est+o.cost_p.label)+'</i>':'')).join(' · ')}</div>`:'';
+ const links=[x.name?dgA(x.maps,'Google Maps','dg-map'):'',dgA(x.url,x.url_label||'Book / info'),dgA(x.src,'source')].filter(Boolean).join(' ');
+ const title=x.title||x.name;const sub=x.title&&x.name?`<div class="dg-pl">${esc(x.name)}${x.area?' · '+esc(x.area):''}</div>`:(x.area&&!x.title?`<div class="dg-pl">${esc(x.area)}</div>`:'');
+ return `<div class="dg-row"><div class="dg-t">${left}</div><div class="dg-b"><b>${x.kind&&DG_ICON[x.kind]?DG_ICON[x.kind]+' ':''}${esc(title)}</b>${unv}${sub}${x.why?`<div>${esc(x.why)}</div>`:''}${m}${ord}${links?`<div class="dg-l">${links}</div>`:''}</div></div>`}
+function dgTime(x){return `<span>${esc(x.time)}</span>${x.end?`<small>${esc(x.end)}</small>`:''}`}
+function secDayGuide(j){
+ const fx=j.fx||{};const days=j.days||[];if(!days.length)return'';
+ let today='';try{today=new Date().toLocaleDateString('en-CA',{timeZone:TRIP.tz||undefined})}catch(e){}
+ window.SEC_DAYSEL=window.SEC_DAYSEL||{};const key=j.id||'dg';
+ const sel=days.find(d=>d.id===window.SEC_DAYSEL[key])||days.find(d=>d.date===today)||days[0];
+ const fold=(h,b,open)=>b?`<details class="fold"${open?' open':''}><summary>${esc(h)}</summary><div class="panel">${b}</div></details>`:'';
+ const list=(a,f)=>(a||[]).map(f).join('');
+ const panel=d=>{const L=(a)=>(a||[]).map(x=>`<div class="fr"><span>•</span>${esc(x)}</div>`).join('');
+  const bk=d.backup;const bud=d.budget;
+  return `<div class="dg-day" data-d="${esc(d.id)}"${d===sel?'':' hidden'}>
+   <h3>${esc(d.title)}</h3>${d.summary?`<p class="muted">${esc(d.summary)}</p>`:''}
+   ${(d.warn||[]).map(w=>`<div class="fr bad"><span>!</span>${esc(w)}</div>`).join('')}
+   ${fold('Hour by hour',list(d.timeline,x=>dgRow(x,dgTime(x))),true)}
+   ${fold('Where to eat',list(d.eat,x=>dgRow(x,`<span>${esc(x.meal||'')}</span>`)))}
+   ${fold('Drinks and nightlife',list(d.nightlife,x=>dgRow(x,`<span>${esc(x.time||'')}</span>`)))}
+   ${fold('Beaches and things to do',list(d.do,x=>dgRow(x,`<span>${DG_ICON[x.kind]||'📍'}</span>`)))}
+   ${bk?fold(bk.title||'Rain or low-energy backup',(bk.text?`<p>${esc(bk.text)}</p>`:'')+list(bk.items,x=>dgRow(x,`<span>${DG_ICON[x.kind]||'☂️'}</span>`))):''}
+   ${bud?fold('Budget for the day (both, est)',list(bud.rows,r=>`<div class="kv"><span>${esc(r.item)}${r.note?`<div class="muted">${esc(r.note)}</div>`:''}</span><b class="num">${esc(r.p.label)}</b></div>`)+`<div class="kv"><b>Day total</b><b class="num">${esc(bud.total.label)}</b></div>${bud.note?`<p class="muted">${esc(bud.note)}</p>`:''}`,true):''}
+   ${fold('Book ahead',list(d.book,b=>`<div class="fl"><div><b>${dgA(b.u,b.t)||esc(b.t)}</b>${b.d?`<div class="muted">${esc(b.d)}</div>`:''}</div></div>`),true)}
+   ${fold('Notes',L(d.notes),!!(d.notes_open))}</div>`};
+ const tabs=days.map(d=>`<button type="button" class="dg-tab" data-dg-day="${esc(d.id)}" aria-pressed="${d===sel}">${esc(d.tab||d.date)}${d.date===today?' <small>today</small>':''}</button>`).join('');
+ const tt=j.trip_total&&j.trip_total.hi?`<p class="muted">Days add up to about ${esc(fx.to||'')} ${secFmt(j.trip_total.lo)}-${secFmt(j.trip_total.hi)} on the ground (est, excludes flights and stays).</p>`:'';
+ return `<div class="dg" data-k="${esc(key)}"><div class="panel fp"><div class="kv"><span>${secEst()} <b>Prices are estimates.</b></span></div><p class="muted">1 ${esc(fx.from)} = ${esc(fx.to)} ${esc(fx.rate)}, ${esc(fx.date)}${fx.source?' · '+dgA(fx.source,'rate source'):''}. Anything with an unverified badge was not confirmed for 21-24 Nov: check hours and prices before relying on them.</p>${j.intro?`<p class="muted">${esc(j.intro)}</p>`:''}${tt}</div>
+  <div class="dg-tabs" role="group" aria-label="Pick a day">${tabs}</div>${days.map(panel).join('')}</div>`}
+if(!window.SEC_DG_BOUND){window.SEC_DG_BOUND=1;document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-dg-day]');if(!b)return;const w=b.closest('.dg');if(!w)return;
+ const id=b.dataset.dgDay;window.SEC_DAYSEL=window.SEC_DAYSEL||{};window.SEC_DAYSEL[w.dataset.k]=id;
+ w.querySelectorAll('.dg-day').forEach(p=>{p.hidden=p.dataset.d!==id});w.querySelectorAll('.dg-tab').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.dgDay===id)))})}
+const SEC_RENDER={brief:secBrief,book:secBook,flightPlan:secFlights,itinerary:secItinerary,stays:secStays,dayGuide:secDayGuide};
 async function secLoad(s,box){
  const body=box.querySelector('.sb'),ac=new AbortController(),to=setTimeout(()=>ac.abort(),SEC_TTL);
  try{const r=await fetch(`data/${s.id}.json`,{cache:'no-store',signal:ac.signal});
