@@ -31,7 +31,7 @@ names of travellers who did not agree to appear; the build refuses the page if a
   "cred":    { img: "Photographer, licence" },
   "cities":  [ ["Morjim", 15.63, 73.73] ],  "typical": { "Morjim": "Typical late Nov · 33° / 22° · dry" },
   "icao":    { "6E": "IGO" },               // airline IATA -> ICAO for the flight tracker fallback link
-  "todo": [...], "pack": [...],
+  "todo": [...], "pack": [...], "todoTitle": "Before you go",   // todoTitle optional, default "Before we fly"
   "driver":  [ {cap, name, local, en, q, tel} ],   // Show-the-driver cards
   "kit":     [ {title, kind:"kv"|"call", rows:[{t, d, u, l, linkTitle:true, ref, pill, pillClass, tel, telLabel}], note} ],
   "phrases": [ ["local script","romanised","meaning"] ],  "phrasesTitle": "Say it in Thai, tap to hear",
@@ -82,7 +82,7 @@ names of travellers who did not agree to appear; the build refuses the page if a
 `tripforge site sync trips/<slug>` (add `--watch 30` to keep going) prepares each `src` into `site/data/<id>.json` concurrently; copy that folder
 to the host and the page picks it up without a rebuild. The page fetches every section on its own request and refresh clock (`every`
 seconds, default 300, plus when the tab returns), with an 8 s timeout, so one slow or missing section shows "Coming soon" while the rest work.
-Kinds: `flightPlan` (below); `itinerary` ({verdict, days[{label, assumption, blocks[{time,title,place,why,link}]}], stays[{place, options[]}], transfer, getting_around, rules_to_flag, visa, budget{lines,total_inr}, unverified[], assumptions[]}; estimates carry a visible "est" pill); `stays` ({places:[{place, dates, top_pick:{name,url,price/est_inr,rating,area,why,verified}, runner_up:{...}}]}; every listing links out and shows "unverified" unless `verified: true`; once it loads it replaces the itinerary's estimated stays); anything else is rendered generically (lists become cards, objects become lines, links become links).
+Kinds: `flightPlan` (below); `itinerary` ({verdict, days[{label, assumption, blocks[{time,title,place,why,link}]}], stays[{place, options[]}], transfer, getting_around, rules_to_flag, visa, budget{lines,total_inr}, unverified[], assumptions[]}; estimates carry a visible "est" pill); `stays` ({places:[{place, dates, top_pick:{name,url,price/est_inr,rating,area,why,verified}, runner_up:{...}}]}; every listing links out and shows "unverified" unless `verified: true`; once it loads it replaces the itinerary's estimated stays); `book` ({legs:[{who, flight, price_<cur>, available|availability, url, checked_at}], total_<cur>, checked_at}: availability pill, booking link, new total); a section may set `pending` (text shown while its file is missing); anything else is rendered generically (lists become cards, objects become lines, links become links).
 Add a kind by adding a renderer to `SEC_RENDER` in `js/20-sections.js` and, if the source needs preparing, a processor in `sections.py`.
 
 ## `flightPlan` section: per-person flights with rule checks
@@ -104,4 +104,5 @@ every option is checked against `rules`, shown with ✓ / ! / ✗ per rule, and 
 }
 ```
 `verified`: true on a leg, an option or the whole plan marks it checked against the airline or fare source; anything else shows an "unverified" pill, and the page upgrades itself when the file changes to `verified: true`.
+`chosen`: an option id the travellers picked; it is shown alone on top with a "chosen plan" pill and the rest fold under "Other options".
 `dep` / `arr` are ISO times with each airport's own offset, so cross-timezone comparisons are exact.
